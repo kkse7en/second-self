@@ -3,7 +3,7 @@ import { dayKeyOf } from "./time";
 
 /** Only explicit workload in the source is extracted; unknown workload remains unknown. */
 export function withExplicitWorkload(draft: TaskDraft): TaskDraft {
-  if (!draft.deadline || draft.start || draft.estateMin) return draft;
+  if (!draft.deadline || draft.start || draft.estateMin !== undefined) return draft;
   const source = draft.rawTextOrigin ?? "";
   const match = /(?:预计|需要|耗时|用时|花费|大约)\s*(半|两|\d+(?:\.\d+)?)\s*(小时|分钟|h\b|min\b)/i.exec(source);
   if (!match) return draft;

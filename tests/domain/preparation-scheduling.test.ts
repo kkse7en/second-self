@@ -7,6 +7,7 @@ import { sampleTasks, SAMPLE_DAY, SAMPLE_NOW } from "@/domain/sample";
 import { nextQuestion, resolveAnswer } from "@/ui/composites/clarifyQueue";
 import { TaskDraftSchema } from "@/domain/schemas/task";
 import { msFromDayKey } from "@/domain/time";
+import { planningRisks } from "@/domain/risks";
 const context={dayKey:SAMPLE_DAY,now:SAMPLE_NOW,termStartDayKey:null};
 describe("截止任务准备排程",()=>{
   it("显式工作量抽取，不猜测未知工作量",()=>{
@@ -21,6 +22,12 @@ describe("截止任务准备排程",()=>{
     expect(result.ok&&result.patch).toEqual({estateMin:120,needsReview:false});
     const reminder=resolveAnswer(question,{source:"option",optionId:"reminder"},SAMPLE_DAY);
     expect(reminder.ok&&reminder.patch.estateMin).toBe(0);
+  });
+  it("明确只提醒后不再追问准备时间，原文也不会覆盖用户选择",()=>{
+    const task={...sampleTasks()[2]!,estateMin:0};
+    expect(planningRisks([task],new Date(SAMPLE_NOW),null).some(r=>r.kind==="preparation")).toBe(false);
+    expect(buildSchedulingPlans([task],context)).toEqual([]);
+    expect(withExplicitWorkload({...TaskDraftSchema.parse(task),rawTextOrigin:"周五交报告，预计两小时"}).estateMin).toBe(0);
   });
   it("联合安排多个待办，在截止前留足工作时间，固定课不动",()=>{
     const tasks=sampleTasks();tasks.push({...tasks[2]!,id:"essay",title:"读书报告",estateMin:60});

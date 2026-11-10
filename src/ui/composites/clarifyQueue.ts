@@ -27,6 +27,7 @@ export interface PendingQuestion {
 
 /** 这一条要不要问（用户已经点过"先跳过"的不再问） */
 function questionsOf(draft: TaskDraft, dayKey: string): ClarifyQuestion[] {
+  if (draft.deadline && !draft.start && !draft.repeat && draft.estateMin === undefined && draft.durationMin === 0) return [{ id: "workload", kind: "duration", prompt: "要提前留多久来准备？", options: [{id:"m30",label:"半小时"},{id:"m60",label:"1 小时"},{id:"m120",label:"2 小时"},{id:"reminder",label:"只提醒，不排准备时间"}], freeInputPlaceholder:"比如：45 分钟" }];
   return buildQuestions(draft, dayKey);
 }
 
@@ -80,7 +81,9 @@ export function resolveAnswer(
   answer: ClarifyAnswer,
   dayKey: string,
 ): AnswerOutcome {
-  const patch = answerToPatch(pending.question, answer, pending.draft, dayKey);
+  const workload = pending.question.id === "workload";
+  let patch = workload && answer.source === "option" && answer.optionId === "reminder" ? { estateMin: 0, needsReview: false } : answerToPatch(pending.question, answer, pending.draft, dayKey);
+  if (workload && patch && answer.source !== "skip" && patch.durationMin) patch = { estateMin: patch.durationMin, needsReview: false };
   if (patch === null) {
     return {
       ok: false,

@@ -22,7 +22,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (snapshot: Ac
     finally { setBusy(false); }
   }
   return <main className="auth-page"><div className="auth-brand"><span className="brand-mark" aria-hidden="true">二</span>第二自我</div>
-    <div className="auth-layout"><section className="auth-intro"><p className="eyebrow">留一点时间，给自己。</p><h1>把日子，<br/><mark>慢慢安排好。</mark></h1><p>通知、课表、随手记。<br/>登录后，你的安排都在这里。</p><div className="auth-art" aria-hidden="true"><span>今天</span><i>09:00　好好开始</i><i>14:00　专心一件事</i><b>把时间留给重要的事 ↗</b></div></section>
+    <div className="auth-layout"><section className="auth-intro"><p className="eyebrow">从一条通知，到下一步行动。</p><h1>消息再零散，<br/><mark>安排也清楚。</mark></h1><p>课表变更对上原安排，截止任务提前留时间。<br/>发现冲突，看清取舍，再确认更新。</p><a className="btn btn-green sample-link" href="/sample">先试试完整样例 ↗</a><div className="auth-art" aria-hidden="true"><span>今天</span><i>09:00　好好开始</i><i>14:00　专心一件事</i><b>把时间留给重要的事 ↗</b></div></section>
     <section className="auth-card" aria-label={mode === "login" ? "账号登录" : "账号注册"}><div className="auth-tabs" role="group" aria-label="账号操作"><button type="button" aria-pressed={mode === "login"} disabled={busy} onClick={() => { setMode("login"); setError(""); }}>登录</button><button type="button" aria-pressed={mode === "register"} disabled={busy} onClick={() => { setMode("register"); setError(""); }}>注册</button></div>
       <h2>{mode === "login" ? "欢迎回来。" : "认识一下新的你。"}</h2><p className="auth-subtitle">{mode === "login" ? "接着安排你的每一天。" : "建立账号，留住每一条安排。"}</p>
       {busy ? <PlanningLoading key={cycle.animationKey} label={mode === "login" ? "正在登录" : "正在创建账号"} onCycleComplete={cycle.complete} /> : <form onSubmit={event => void submit(event)}>

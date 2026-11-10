@@ -8,7 +8,7 @@ export function planningRisks(tasks: readonly Task[], now: Date, termStartDayKey
   const risks: PlanningRisk[] = detectConflicts(tasks, { ...DEFAULT_DETECT_CONFIG, termStartDayKey, repeatWindowStartDayKey: today }, now)
     .filter(c => c.date >= today && c.date <= last).map(c => ({ id:c.conflictId + c.date, day:c.date, title:c.humanMessage, detail:c.involvedTaskIds.map(id=>tasks.find(t=>t.id===id)?.title).filter(Boolean).join(" / "), taskIds:c.involvedTaskIds, kind:"conflict", severity:c.severity }));
   for (const task of tasks) {
-    if (task.done || task.start || !task.deadline || task.repeat || task.locked) continue;
+    if (task.done || task.start || !task.deadline || task.repeat || task.locked || task.estateMin === 0) continue;
     const day = dayKeyOf(Date.parse(task.deadline));
     if (day < today || day > last) continue;
     risks.push({ id:"prepare-"+task.id, day, title:task.title, detail:(task.estateMin ?? task.durationMin) > 0 ? "截止前还没留出准备时间" : "补充准备时长，或仅保留提醒", taskIds:[task.id], kind:"preparation", severity:"medium" });

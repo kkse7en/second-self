@@ -3,11 +3,7 @@ export const APP_NAME = "第二自我";
 export const APP_SUBTITLE = "校园日程与冲突规划助手";
 export const APP_VERSION = "1.0.0";
 
-/**
- * 六层架构的唯一定义源：/api/health 与落地页共用，避免两处描述漂移。
- * 口径：立项时口述为「四层」（路由/展示/业务/数据），落盘后 ai 独立成层、
- * shared 为横切目录，实际为六层。文档、视频、答辩统一称「六层目录结构」。
- */
+/** 应用目录边界；认证与SQLite实现另位于 src/server。 */
 export const ARCHITECTURE_LAYERS = [
   {
     key: "app",
@@ -19,7 +15,7 @@ export const ARCHITECTURE_LAYERS = [
     key: "ui",
     label: "展示层 UI",
     path: "src/ui",
-    boundary: "纯 props 组件，不 fetch、不读 env、不含算法",
+    boundary: "交互与状态编排，经同源API请求服务；不读取服务端环境变量",
   },
   {
     key: "domain",
@@ -31,7 +27,7 @@ export const ARCHITECTURE_LAYERS = [
     key: "data",
     label: "持久化适配层 Data",
     path: "src/data",
-    boundary: "本地持久化适配层（StorageAdapter + localStorage），仅 client 侧，无服务端数据库",
+    boundary: "按账号本地缓存、状态与快照；account-sync经API同步服务端SQLite",
   },
   {
     key: "ai",

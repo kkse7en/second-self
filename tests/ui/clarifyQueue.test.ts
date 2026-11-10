@@ -67,7 +67,7 @@ describe("resolveAnswer", () => {
     expect(nextQuestion([mergeDraftPatch(pending.draft, outcome.patch), draft("体测")], DAY, [0])?.index).toBe(1);
   });
 
-  it("点选日期 → 产出 patch，且这条不再追问（诊断条件变了）", () => {
+  it("点选日期后追问准备时长，选择只提醒后结束", () => {
     const drafts = [draft("交作业")];
     const pending = nextQuestion(drafts, DAY, [])!;
     const outcome = resolveAnswer(pending, { source: "option", optionId: "tomorrow" }, DAY);
@@ -76,7 +76,10 @@ describe("resolveAnswer", () => {
     expect(outcome.patch.deadline?.slice(0, 10)).toBe("2026-10-20");
 
     const patched = mergeDraftPatch(pending.draft, outcome.patch);
-    expect(nextQuestion([patched], DAY, [])).toBeNull();
+    const workload = nextQuestion([patched], DAY, []);
+    expect(workload?.question.id).toBe("workload");
+    const reminder = resolveAnswer(workload!, { source:"option", optionId:"reminder" }, DAY);
+    expect(reminder.ok && nextQuestion([mergeDraftPatch(patched, reminder.patch)],DAY,[])).toBeNull();
   });
 
   it("自由输入认不出 → 不改数据，给一句人话让用户重说", () => {

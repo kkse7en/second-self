@@ -8,13 +8,14 @@ import { ReplanResponseSchema, type ReplanSuccess } from "@/domain/schemas/api";
 import { usePlannerStore } from "@/data/store";
 import { computePlanMetrics } from "./planMetrics";
 import { planChanges, timeRangeLabel } from "./planChanges";
+import { buildSchedulingPlans } from "@/domain/scheduling";
 import { PlanningLoading } from "./PlanningLoading";
 import { useLoadingCycle } from "./useLoadingCycle";
 
 type Phase = "idle" | "loading" | "ready";
 
-export function ReplanPanel({ tasks, dayKey, now, termStartDayKey = null, onApplied }: {
-  tasks: Task[]; dayKey: string; now: Date; termStartDayKey?: string | null; onApplied: () => void;
+export function ReplanPanel({ tasks, dayKey, now, termStartDayKey = null, onApplied, sample=false }: {
+  sample?: boolean; tasks: Task[]; dayKey: string; now: Date; termStartDayKey?: string | null; onApplied: () => void;
 }) {
   const cycle = useLoadingCycle();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -43,8 +44,16 @@ export function ReplanPanel({ tasks, dayKey, now, termStartDayKey = null, onAppl
     const animation = cycle.start();
     const original = tasks;
     try {
+      if (sample) {
+        if(feedback.trim())throw new Error("样例体验使用本地规则，自然语言补充请登录并连接 AI。");
+        const plans=buildSchedulingPlans(original,{dayKey,now:now.toISOString(),termStartDayKey});
+        if(!plans.length)throw new Error("七天内未找到可行方案，请检查时长与固定安排。");
+        if(!await animation)return;
+        setBaseline(original);setFingerprint(JSON.stringify(original));setApplied("");setIncludedFeedback("");
+        setResult({ok:true,mode:"demo",fallback:false,rejected:[],timings:[],plans});setSelected(plans[0]!.id);setPhase("ready");return;
+      }
       const response = await fetch("/api/ai/replan", {
-        method: "POST", headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(120000), method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ tasks: original, dayKey, now: now.toISOString(), termStartDayKey,
           feedback: feedback.trim() || undefined, previousPlan: feedback.trim() ? active : undefined }),
       });
@@ -93,7 +102,7 @@ export function ReplanPanel({ tasks, dayKey, now, termStartDayKey = null, onAppl
         <div className="replan-overview"><div><span className="replan-eyebrow">这套方案</span><h3>{active.title}</h3></div>
           <div className="replan-stat"><span>整体冲突</span><strong>{metrics.conflictsBefore}<i aria-hidden="true">→</i>{metrics.conflictsAfter}</strong></div>
         </div>
-        {includedFeedback && <p className="replan-answer">{active.rationale}</p>}
+        <p className="replan-answer">{active.rationale}</p><div className="plan-facts"><span>调整 {metrics.movedCount} 项</span><span>偏移 {metrics.deviationMin} 分钟</span><span>固定安排已保护</span></div>
         <div className="replan-change-head"><h4>调整 {changes.length} 项</h4><span>其余安排不变</span></div>
         <ol className="replan-change-list">{changes.map(change => <li key={change.taskId}>
           <h4>{change.title}</h4><div className="replan-time-change">
@@ -105,7 +114,7 @@ export function ReplanPanel({ tasks, dayKey, now, termStartDayKey = null, onAppl
         {!changes.length && <p className="replan-empty">这套方案没有时间变动</p>}
         {blocked ? <p className="replan-warning" role="alert">方案涉及固定安排或已删除任务，暂不可采用</p>
           : metrics.conflictsAfter > 0 ? <p className="replan-caution">仍有 {metrics.conflictsAfter} 处冲突需要处理</p>
-          : <p className="replan-clear">✓ 已避开冲突</p>}
+          : <p className="replan-clear">✓ 未发现时间冲突</p>}
         {stale && !applied && <p className="replan-warning" role="status">日程已变化，请重新生成</p>}
         <div className="replan-apply"><span>{applied ? "已应用 · 可撤销" : "确认后才会更新日程"}</span>
           <button type="button" className="btn btn-green" disabled={phase === "loading" || blocked || stale || feedbackChanged || !changes.length || !!applied} onClick={() => apply(active)}>
