@@ -18,6 +18,7 @@ import type {
 import { DEFAULT_DETECT_CONFIG, detectConflicts } from "@/domain/conflicts";
 import { readAiConfig, type AiRuntimeConfig } from "./client";
 import { guardPlan } from "@/domain/planGuard";
+import { withExplicitWorkload } from "@/domain/preparation";
 import { demoParseTasks, demoReplanPlans } from "./demo";
 import { callStructuredJson } from "./guarded";
 import {
@@ -48,7 +49,7 @@ function validateDrafts(items: ReadonlyArray<unknown>): {
   for (const [index, item] of items.entries()) {
     const parsed = TaskDraftSchema.safeParse(item);
     if (parsed.success) {
-      kept.push(parsed.data);
+      kept.push(withExplicitWorkload(parsed.data));
     } else {
       const title =
         typeof item === "object" && item !== null && "title" in item
@@ -67,7 +68,7 @@ export async function parseTasksFromText(
   config: AiRuntimeConfig = readAiConfig(),
 ): Promise<ParseTasksResponse> {
   if (config.mode === "demo") {
-    const tasks = demoParseTasks(input.text, input.dayKey);
+    const tasks = demoParseTasks(input.text, input.dayKey).map(withExplicitWorkload);
     const parsed = TaskDraftSchema.array().safeParse(tasks);
     if (!parsed.success || parsed.data.length === 0) {
       return {
@@ -205,7 +206,7 @@ export async function replanForDay(
   input: ReplanRequest,
   config: AiRuntimeConfig = readAiConfig(),
 ): Promise<ReplanResponse> {
-  const schedulable = input.tasks.filter((t) => !t.done && t.durationMin > 0);
+  const schedulable = input.tasks.filter((t) => !t.done && !t.locked && !t.repeat && Math.max(t.durationMin, t.estateMin ?? 0) > 0);
   if (schedulable.length === 0) {
     return {
       ok: false,

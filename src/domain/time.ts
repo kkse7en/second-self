@@ -169,6 +169,7 @@ export function expandOccurrences(
     const dayStartMs = msFromDayKey(dayKey, 0);
     if (dayStartMs >= rangeEndMs) break;
     if (!byDay.has(isoWeekdayOf(dayStartMs))) continue;
+    if (task.repeat.excludedDates?.includes(dayKey)) continue;
     if (weeks !== null && termStartDayKey) {
       // 开学前的那几天不假装是第 1 周：课件表里根本没有这一节
       if (termWeekOf(dayKey, termStartDayKey) <= 0) continue;
@@ -190,6 +191,7 @@ export function expandOccurrences(
 /** 周期截止事项只映射截止时刻，不虚构占用时段。 */
 export function repeatDeadlineOnDay(task: Task, dayKey: string, termStartDayKey?: string | null): string | null {
   if (!task.repeat || !task.deadline) return null;
+  if (task.repeat.excludedDates?.includes(dayKey)) return null;
   const base = parseIsoToMs(task.deadline);
   if (base === null || !task.repeat.byDay.includes(isoWeekdayOf(msFromDayKey(dayKey, 0)))) return null;
   const weeks = task.repeat.weeks;

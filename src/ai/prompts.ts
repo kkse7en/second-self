@@ -71,18 +71,18 @@ export function buildImageParseUser(dayKey: string, hint?: string): string {
 }
 
 export const REPLAN_SYSTEM = [
-  "你是一个日程重排顾问。输入是任务列表与目标日期，你要给出 2-3 套可执行的排布方案。",
+  "你是一个日程重排顾问。输入是任务列表与目标日期，你要给出 1-2 套有不同取舍的可执行方案；无法形成差异就只给一套。",
   "输出唯一格式：",
   '{ "plans": [ { "title": string, "rationale": string, "blocks": [ { "taskId": string, "start": string, "end": string } ] } ] }',
   "硬约束（违反即作废，本地会校验）：",
   "1. 同一套方案内 blocks 两两不重叠。",
   "2. 每个时间块必须落在安排当天07:00–23:00，不得跨天；目标日放不下时可顺延，目的日仍须避开全部约束。",
-  "3. 每个 block 的时长不得小于该任务的 durationMin（不足 15 分钟的按 15 分钟），不许压缩任务。",
+  "3. 每个 block 的时长不得小于该任务的准备时长或 durationMin（不足 15 分钟的按 15 分钟），不许压缩任务。",
   "4. 不得把任务排到它的 deadline 之后。",
   "5. 单个方案覆盖的时长总和不得超过 600 分钟。",
   "6. taskId 必须来自输入，不得新增或编造任务。",
   "7. 只输出 JSON，不要 markdown 代码块，不要解释。",
-  "9. 固定安排、已完成安排和周期安排不得移动。只移动目标日的任务，其他任务是必须避开的约束。",
+  "9. 固定安排、已完成安排和周期安排不得移动。可移动目标日的任务；未排时段且有明确准备时长的截止任务可安排。其他任务必须避开，最多向后安排七天。",
   "8. rationale 用一句中文说明这套方案的取舍（不超过 80 字）。",
   "10. 不能排入当前时间之前。只输出真正改变时间的任务，不输出固定、已完成、周期或原时间不变的块。",
   "11. 除重叠外还要留出输入给出的赶场缓冲。现有冲突必须减少，不得引入新冲突；已完成任务不移动。",
@@ -95,6 +95,7 @@ export function buildReplanUser(
     id: string;
     title: string;
     durationMin: number;
+    estateMin?: number;
     priority: number;
     deadline: string | null;
     start: string | null;
@@ -105,7 +106,7 @@ export function buildReplanUser(
 ): string {
   const lines = tasks.map(
     (t) =>
-      `- taskId=${t.id} | 标题=${t.title} | 时长=${t.durationMin}分钟 | 优先级=${t.priority} | 截止=${t.deadline ?? "无"} | 固定=${t.locked ?? false} | 弹性=${t.flexible ?? false} | 地点=${t.location ?? "未知"} | 重复=${JSON.stringify(t.repeat ?? null)} | 当前=${t.start ?? "未排"}~${t.end ?? "未排"}`,
+      `- taskId=${t.id} | 标题=${t.title} | 时长=${Math.max(t.durationMin, t.start ? 0 : t.estateMin ?? 0)}分钟 | 优先级=${t.priority} | 截止=${t.deadline ?? "无"} | 固定=${t.locked ?? false} | 弹性=${t.flexible ?? false} | 地点=${t.location ?? "未知"} | 重复=${JSON.stringify(t.repeat ?? null)} | 当前=${t.start ?? "未排"}~${t.end ?? "未排"}`,
   );
   return [
     `目标日期：${dayKey}（本地时区）`,
@@ -113,7 +114,7 @@ export function buildReplanUser(
     DATA_DELIMITER_OPEN,
     ...lines,
     DATA_DELIMITER_CLOSE,
-    "请输出 2-3 套方案。只重排下面列出的任务，未列出的任务不要动。",
+    "请输出 1-2 套方案（少改动 / 优先截止），相同方案只保留一套。只重排下面列出的任务，未列出的任务不要动。",
     "当前时间：" + (context.now ?? "以目标日期为准") + "；禁止排入已过去的时间。",
     "赶场与容量约束：" + JSON.stringify(context.constraints ?? {}),
     "已完成的任务ID：" + JSON.stringify(tasks.filter(task => task.done).map(task => task.id)),

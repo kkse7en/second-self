@@ -7,6 +7,7 @@ import { accountStorageKey } from "./account-cache";
 import { isValidDayKey, isValidTimestamp } from "@/domain/schemas/date";
 import { MAX_TASKS, TaskListSchema, TaskSchema, type Task, type TaskDraft } from "@/domain/schemas/task";
 import { guardPlan, type PlanContext } from "@/domain/planGuard";
+import { applyIntakeChanges, type IntakeChoice } from "@/domain/intakeChanges";
 import { applyPlan, type ReplanPlan } from "@/domain/reflow";
 import { formatTimetableSummary, type TimetablePlan } from "@/domain/schedule";
 import { MS_MINUTE, addDaysToKey, dayKeyOf, isoWeekdayOf, msFromDayKey } from "@/domain/time";
@@ -43,6 +44,7 @@ interface PlannerState {
    */
   demoClock: { iso: string; source: "seed" | "system" };
   addDrafts: (drafts: TaskDraft[], source?: "text" | "manual") => { ok: boolean; error?: string; added?: number };
+  confirmIntake: (drafts: TaskDraft[], choices: IntakeChoice[], fingerprint: string) => { ok: boolean; error?: string; added?: number; updated?: number; skipped?: number };
   /** P0-2 手动新增：比 addDrafts 多带 location / locked（用户权威字段） */
   addManualTask: (input: ManualTaskInput) => { ok: boolean; error?: string; id?: string };
   updateTask: (id: string, patch: Partial<Omit<Task, "id">>) => { ok: boolean; error?: string };
@@ -108,6 +110,14 @@ export const usePlannerStore = create<PlannerState>()(
       // 初始 = 系统时间（来源如实标注）；导入带 demoNow 的种子后切到 seed 时钟
       demoClock: { iso: new Date().toISOString(), source: "system" as const },
 
+      confirmIntake: (drafts, choices, fingerprint) => {
+        const before = get().tasks;
+        if (JSON.stringify(before) !== fingerprint) return { ok: false, error: "日程已变化，请返回重新核对关联" };
+        const result = applyIntakeChanges(before, drafts, choices, newId, get().termStartDayKey);
+        if (!result.ok) return result;
+        if (result.added || result.updated) set({ tasks: result.tasks, snapshot: before, snapshotClock: get().demoClock, snapshotTermStart: get().termStartDayKey, lastError: null });
+        return { ok: true, added: result.added, updated: result.updated, skipped: result.skipped };
+      },
       addDrafts: (drafts, source = "manual") => {
         if (get().tasks.length + drafts.length > MAX_TASKS) {
           const error = `最多保存${MAX_TASKS}条日程，请先导出并整理`;

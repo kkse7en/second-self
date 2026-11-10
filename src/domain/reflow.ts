@@ -3,6 +3,7 @@ import {
   DEFAULT_DETECT_CONFIG,
   dailyTotals,
   detectConflicts,
+  parseDeadlineMs,
   timedTasksOf,
   type Conflict,
   type DetectConfig,
@@ -161,7 +162,7 @@ function windowViolation(block: Block, config: ReflowConfig): string | null {
 
 /** deadline 前置：任务不能排到自己的截止时间之后 */
 function deadlineViolation(task: Task, endMs: number): string | null {
-  const deadlineMs = parseIsoToMs(task.deadline);
+  const deadlineMs = parseDeadlineMs(task.deadline);
   if (deadlineMs === null) return null;
   if (endMs <= deadlineMs) return null;
   return `排到了截止时间之后`;
@@ -422,7 +423,7 @@ function validateWhole(
       violations.push({ kind: "duration", reason: `「${task.title}」的时长为 0 或负`, taskIds: [task.id] });
       continue;
     }
-    const deadlineMs = parseIsoToMs(task.deadline);
+    const deadlineMs = parseDeadlineMs(task.deadline);
     if (deadlineMs !== null && endMs > deadlineMs) {
       violations.push({
         kind: "deadline",
@@ -958,7 +959,7 @@ export function validatePlan(
 
     const minutes = Math.round((shape.endMs - shape.startMs) / MS_MINUTE);
     // 旧口径"不许缩水"；新裁决器按 SPEC 0.1 放宽到"只有 flexible 才能缩水"
-    const required = task.durationMin > 0 ? task.durationMin : 15;
+    const required = Math.max(task.durationMin, task.start ? 0 : task.estateMin ?? 0, 15);
     if (minutes < required) {
       issues.push(
         `「${task.title}」被压缩到 ${formatDuration(minutes)}，不少于原定 ${formatDuration(required)}`,

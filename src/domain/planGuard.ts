@@ -1,6 +1,6 @@
 import { applyPlan, DEFAULT_PLAN_OPTIONS, validatePlan, type ReplanPlan } from "./reflow";
 import { DEFAULT_DETECT_CONFIG, detectConflicts } from "./conflicts";
-import { dayKeyOf, msFromDayKey } from "./time";
+import { addDaysToKey, dayKeyOf, msFromDayKey } from "./time";
 import type { Task } from "./schemas/task";
 
 export interface PlanContext { dayKey: string; now?: string; termStartDayKey?: string | null }
@@ -17,6 +17,8 @@ export function guardPlan(plan: ReplanPlan, tasks: readonly Task[], context: Pla
     seen.add(block.taskId);
     if (!task) { issues.push("方案包含不存在的任务"); continue; }
     const changed = task.start !== block.start || task.end !== block.end;
+    if (!task.start && (!task.deadline || (task.estateMin ?? task.durationMin) <= 0)) issues.push("请先补充准备时长：" + task.title);
+    if (dayKeyOf(Date.parse(block.start)) < context.dayKey || dayKeyOf(Date.parse(block.start)) > addDaysToKey(context.dayKey, 6)) issues.push("方案超出七天排程范围");
     if (changed && (task.locked || task.repeat || task.done)) issues.push("固定、周期或已完成安排不可自动移动：" + task.title);
     if (changed && task.start && dayKeyOf(Date.parse(task.start)) !== context.dayKey) issues.push("只可移动所选日期的任务：" + task.title);
     if (context.now && changed && Date.parse(block.start) < now.getTime()) issues.push("不能把任务排入已过去的时间");
@@ -38,6 +40,7 @@ export function guardPlan(plan: ReplanPlan, tasks: readonly Task[], context: Pla
   for (const c of afterConflicts) {
     if (c.conflictType !== "deadline" && !beforeKeys.has(c.conflictId+"@"+c.date) && c.involvedTaskIds.some(id=>seen.has(id))) issues.push("方案引入新冲突："+c.humanMessage);
   }
-  if (beforeConflicts.length && afterConflicts.length >= beforeConflicts.length) issues.push("方案未减少冲突，请调整后重新生成");
+  const prepared = plan.blocks.some(block => !tasks.find(t => t.id === block.taskId)?.start);
+  if (beforeConflicts.length && afterConflicts.length >= beforeConflicts.length && !prepared) issues.push("方案未减少冲突，请调整后重新生成");
   return { ok: issues.length === 0, issues: [...new Set(issues)] };
 }

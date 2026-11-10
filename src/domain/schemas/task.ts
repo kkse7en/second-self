@@ -69,6 +69,7 @@ export const RepeatRuleSchema = z.object({
    * 判定顺序固定为 范围 → 单双周 → 排除周，排除周是否决票（见 `isWeekActive`）。
    */
   weeks: WeekSpecSchema.nullable().optional(),
+  excludedDates: z.array(DayKeySchema).max(400).optional(),
 });
 export type RepeatRule = z.infer<typeof RepeatRuleSchema>;
 
@@ -112,6 +113,7 @@ export const TaskSchema = z
     source: TaskSourceSchema,
     done: z.boolean(),
     completedOn: z.array(DayKeySchema).optional(),
+    occurrenceOf: z.string().min(1).optional(),
     /** 来自粘贴文本的原始行，用于人工修正时溯源 */
     rawTextOrigin: z.string().max(2000).nullable(),
     /**
@@ -154,6 +156,7 @@ export type Task = z.infer<typeof TaskSchema>;
 /** 人工新增 / AI 解析产出统一用 Draft：没有 id 与 done，由 store 落库时补齐 */
 export const TaskDraftSchema = z
   .object({
+    estateMin: z.number().int().min(0).max(1440).optional(),
     title: z.string().trim().min(1).max(200),
     start: isoOrNull,
     end: isoOrNull,
