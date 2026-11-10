@@ -7,6 +7,11 @@
   "engines": {
     "node": ">=22.13 <25"
   },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

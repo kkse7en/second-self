@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 process.env.TZ = "Asia/Shanghai";
 
 const nextConfig: NextConfig = {
+  agentRules: false,
   reactStrictMode: true,
   // 隐藏开发浮标；错误仍在终端和健康接口报告。
   devIndicators: false,

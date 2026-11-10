@@ -109,7 +109,7 @@ function createEngine(styleConfig, opts = {}) {
     if (s && s.begun) revealSlice(s);
   }
 
-  // deltaMs is a visible-frame clock supplied by player.js, already scaled to 2x.
+  // deltaMs is the scaled visible-frame clock supplied by player.js.
   function draw(deltaMs = 0) {
     translate(-W / 2, -H / 2);
     if (currentCycle < 0 || nextCycle) {

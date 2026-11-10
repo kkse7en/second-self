@@ -89092,7 +89092,7 @@ var p5 = (function () {
   				"Number?"
   			],
   			[
-  				"p5.Image|p5.Element|p5.Texture|p5.Framebuffer|p5.FramebufferTexture",
+                "p5.Image|p5.Element|p5.Texture|p5.Framebuffer|p5.FramebufferTexture|p5.Renderer|p5.Graphics",
   				"Number",
   				"Number",
   				"Number",
@@ -101843,6 +101843,9 @@ var p5 = (function () {
       ];
 
       for(const event of events){
+        // This sandboxed drawing never uses motion sensors.
+        const policy = document.permissionsPolicy || document.featurePolicy;
+        if (policy && !policy.allowsFeature('accelerometer')) continue;
         window.addEventListener(event, this[`_on${event}`].bind(this), {
           passive: false,
           signal: this._removeSignal

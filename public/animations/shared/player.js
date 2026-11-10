@@ -1,5 +1,5 @@
-// All painting waits run at 2x; a completed picture is held before release.
-const PLAYBACK_RATE = 2;
+// One complete drawing and hold take about 1.3s, excluding asset initialization.
+const PLAYBACK_RATE = 8;
 let previousFrame = null, completedCycle = false;
 function notify(type) { parent.postMessage({ channel: 'second-self:painting', type }, '*'); }
 window.addEventListener('error', () => notify('error'), true);
