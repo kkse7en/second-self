@@ -191,5 +191,34 @@
     "no Safari device validation",
     "no multi-instance or load test",
     "no global scheduling optimality guarantee"
-  ]
+  ],
+  "cleanReproduction": {
+    "installSeconds": 52.7416949,
+    "buildSeconds": 21.6359827,
+    "totalSeconds": 101.8449818,
+    "head": "2659d03cdd7f7c70d243cfa71bf8e1db7f69bfa6",
+    "verifySeconds": 27.4673042
+  },
+  "finalBrowserRegression": {
+    "date": "2026-11-10",
+    "checks": [
+      {
+        "name": "date-input-updates-calendar-month",
+        "ok": true
+      },
+      {
+        "name": "previous-month-selection-updates-calendar",
+        "ok": true
+      },
+      {
+        "name": "fast-result-waits-for-complete-cycle",
+        "ok": true
+      },
+      {
+        "name": "adopt-returns-to-schedule",
+        "ok": true
+      }
+    ],
+    "fastResultElapsedMs": 3155
+  }
 }
