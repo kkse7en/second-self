@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TaskListSchema } from "@/domain/schemas/task";
+import { TimestampSchema } from "@/domain/schemas/date";
 
 /** 本地缓存与JSON导入导出契约；账号权威副本由server/accounts的SQLite保存。 */
 
@@ -21,7 +22,7 @@ export const EXPORT_FORMAT = "vibe-coding-2026/planner";
 export const ExportEnvelopeSchema = z.object({
   format: z.literal(EXPORT_FORMAT),
   version: z.number().int().min(1),
-  exportedAt: z.string(),
+  exportedAt: TimestampSchema,
   data: PlannerPayloadSchema,
 });
 export type ExportEnvelope = z.infer<typeof ExportEnvelopeSchema>;

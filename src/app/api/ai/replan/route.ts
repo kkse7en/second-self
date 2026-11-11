@@ -1,56 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { accountFailure, readAccountJson, requireAccount, sameOrigin } from "@/server/account-http";
-import { AccountError } from "@/server/accounts";
+import type { NextRequest } from "next/server";
 import { ReplanRequestSchema } from "@/domain/schemas/api";
 import { replanForDay } from "@/ai/tasks";
-import { checkRateLimit } from "@/ai/ratelimit";
-import { readAiConfig } from "@/ai/client";
-
+import { handleAiRequest } from "@/server/ai-http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/**
- * POST /api/ai/replan
- * 任务集合 → 2-3 套重排方案。模型只提方案，合法性由 domain 的 validatePlan 判定，
- * 被否决的方案连同原因一起返回（透明化）。
- */
-export async function POST(request: NextRequest) {
-  let userId: string;
-  try { sameOrigin(request); userId = requireAccount(request).user.id; }
-  catch (error) { return accountFailure(error); }
-  const mode = readAiConfig().mode;
-  const limit = checkRateLimit(`replan:${userId}`);
-  if (!limit.allowed) {
-    return NextResponse.json(
-      { ok: false, mode, error: `请求太频繁，请 ${limit.retryAfterSec} 秒后再试`, issues: [], timings: [] },
-      { status: 429, headers: { "retry-after": String(limit.retryAfterSec) } },
-    );
-  }
-
-  let body: unknown;
-  try {
-    body = await readAccountJson(request);
-  } catch (error) {
-    return NextResponse.json(
-      { ok: false, mode, error: error instanceof AccountError ? error.message : "请求体不是合法 JSON", issues: [], timings: [] },
-      { status: error instanceof AccountError ? error.status : 400 },
-    );
-  }
-
-  const parsed = ReplanRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        ok: false,
-        mode,
-        error: "请求参数不合法",
-        issues: parsed.error.issues.map((i) => `${i.path.join(".") || "(根)"}: ${i.message}`),
-        timings: [],
-      },
-      { status: 400 },
-    );
-  }
-
-  const result = await replanForDay(parsed.data);
-  return NextResponse.json(result, { status: result.ok ? 200 : 422 });
+export function POST(request: NextRequest) {
+  return handleAiRequest(request, { key: "replan", bodyLimit: 6000000, schema: ReplanRequestSchema, run: input => replanForDay(input) });
 }

@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const SaveSchema = z.object({ accountId: z.string().uuid(), workspace: AccountWorkspaceSchema, revision: z.number().int().min(0) });
 export function GET(request: NextRequest) {
-  try { return privateJson({ ok: true, snapshot: requireAccount(request) }); }
+  try { return privateJson({ ok: true, snapshot: accountRepository().snapshot(requireAccount(request).user.id) }); }
   catch (error) { return accountFailure(error); }
 }
 export async function PUT(request: NextRequest) {

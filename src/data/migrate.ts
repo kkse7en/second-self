@@ -1,5 +1,6 @@
 import {
   EMPTY_PAYLOAD,
+  ExportEnvelopeSchema,
   PlannerPayloadSchema,
   type PlannerPayload,
   type Result,
@@ -60,14 +61,18 @@ export function migrateImportedPayload(parsed: unknown): Result<PlannerPayload> 
       return { ok: false, error: "这不是本工具导出的文件（format 不匹配）" };
     }
     const version = typeof record.version === "number" ? record.version : 0;
-    if (version < 1) return { ok: false, error: "导入文件缺少有效版本号" };
+    if (!Number.isInteger(version) || version < 1) return { ok: false, error: "导入文件缺少有效版本号" };
     if (version > 2) {
       return {
         ok: false,
         error: `导入文件版本 v${version} 比当前程序（v2）新，请先升级再导入`,
       };
     }
-    return validate(record.data);
+    const payload = validate(record.data);
+    if (!payload.ok) return payload;
+    const envelope = ExportEnvelopeSchema.safeParse({ ...record, data: payload.value });
+    if (!envelope.success) return { ok: false, error: "导入文件的版本或导出时间不合法" };
+    return { ok: true, value: envelope.data.data };
   }
 
   // 兼容裸 tasks 数组的旧文件

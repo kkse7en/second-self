@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { createHash } from "node:crypto";
 
 /**
  * 模型运行配置 —— 全部来自服务端环境变量，密钥永远不进前端。
@@ -24,7 +25,7 @@ export function readAiConfig(env: NodeJS.ProcessEnv = process.env): AiRuntimeCon
     apiKey: apiKey || undefined,
     model: env.LLM_MODEL?.trim() || "gpt-4o-mini",
     timeoutMs,
-    maxRetries: Math.min(3, toPositiveInt(env.AI_MAX_RETRIES, 1)),
+    maxRetries: Math.min(3, toNonNegativeInt(env.AI_MAX_RETRIES, 1)),
   };
 }
 
@@ -45,7 +46,7 @@ export function getClient(config: AiRuntimeConfig): OpenAI {
   if (config.mode !== "live" || !config.apiKey) {
     throw new Error("demo 模式下不应创建真实客户端");
   }
-  const key = `${config.baseURL ?? "default"}|${config.apiKey.slice(0, 6)}|${config.timeoutMs}`;
+  const key = JSON.stringify([config.baseURL ?? "default", createHash("sha256").update(config.apiKey).digest("hex"), config.timeoutMs]);
   if (cached?.key === key) return cached.client;
   const client = new OpenAI({
     apiKey: config.apiKey,
@@ -84,4 +85,7 @@ export function describeAiError(error: unknown, timeoutMs: number): string {
 function toPositiveInt(value: string | undefined, fallback: number): number {
   const n = Number.parseInt(value ?? "", 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+function toNonNegativeInt(value: string | undefined, fallback: number): number {
+  return value !== undefined && /^\d+$/.test(value.trim()) ? Number(value) : fallback;
 }

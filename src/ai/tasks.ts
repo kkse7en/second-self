@@ -8,7 +8,7 @@ import {
   type Task,
   type TaskDraft,
 } from "@/domain/schemas/task";
-import { checkCoverage, unverifiedCoverage } from "@/domain/completeness";
+import { checkCoverage, unsupportedDraftIndexes, unverifiedCoverage } from "@/domain/completeness";
 import type {
   ParseTasksResponse,
   ReplanResponse,
@@ -19,6 +19,7 @@ import { DEFAULT_DETECT_CONFIG, detectConflicts } from "@/domain/conflicts";
 import { readAiConfig, type AiRuntimeConfig } from "./client";
 import { guardPlan } from "@/domain/planGuard";
 import { withExplicitWorkload } from "@/domain/preparation";
+import { parseLocalTasks } from "@/domain/textParser";
 import { demoParseTasks, demoReplanPlans } from "./demo";
 import { callStructuredJson } from "./guarded";
 import {
@@ -40,7 +41,7 @@ import {
  */
 
 /** 逐条再过一次 Draft 契约：模型可能某一条合法、另一条不合法 */
-function validateDrafts(items: ReadonlyArray<unknown>): {
+function validateDrafts(items: ReadonlyArray<unknown>, dayKey: string): {
   kept: TaskDraft[];
   droppedIssues: string[];
 } {
@@ -49,7 +50,9 @@ function validateDrafts(items: ReadonlyArray<unknown>): {
   for (const [index, item] of items.entries()) {
     const parsed = TaskDraftSchema.safeParse(item);
     if (parsed.success) {
-      kept.push(withExplicitWorkload(parsed.data));
+      const draft = parsed.data;
+      const inferred = draft.durationInferred || (!!draft.start && !!draft.rawTextOrigin && parseLocalTasks(draft.rawTextOrigin, dayKey).some(item => item.durationInferred));
+      kept.push(withExplicitWorkload({ ...draft, durationInferred: !!inferred, needsReview: draft.needsReview || !!inferred }));
     } else {
       const title =
         typeof item === "object" && item !== null && "title" in item
@@ -111,7 +114,11 @@ export async function parseTasksFromText(
     };
   }
 
-  const { kept, droppedIssues } = validateDrafts(result.data.tasks);
+  const { kept, droppedIssues } = validateDrafts(result.data.tasks, input.dayKey);
+  for (const index of unsupportedDraftIndexes(input.text, kept)) {
+    kept[index] = { ...kept[index]!, needsReview: true };
+    droppedIssues.push(`第 ${index + 1} 条无法对应原文，请核对或删除`);
+  }
 
   if (kept.length === 0) {
     return {
@@ -178,7 +185,7 @@ export async function parseTasksFromImage(
     };
   }
 
-  const { kept, droppedIssues } = validateDrafts(result.data.tasks);
+  const { kept, droppedIssues } = validateDrafts(result.data.tasks, input.dayKey);
 
   if (kept.length === 0) {
     return {
@@ -261,6 +268,7 @@ export async function replanForDay(
 
   const rejected: RejectedPlan[] = [];
   const legal: ReplanPlan[] = [];
+  const signatures = new Set<string>();
   for (const [index, rawPlan] of result.data.plans.entries()) {
     const plan: ReplanPlan = {
       id: `ai-plan-${index + 1}`,
@@ -270,7 +278,8 @@ export async function replanForDay(
     };
     const verdict = guardPlan(plan, input.tasks, { dayKey: input.dayKey, now: input.now, termStartDayKey: input.termStartDayKey });
     if (verdict.ok) {
-      legal.push(plan);
+      const signature = JSON.stringify(plan.blocks.map(block => [block.taskId, Date.parse(block.start), Date.parse(block.end)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+      if (!signatures.has(signature)) { legal.push(plan); signatures.add(signature); }
     } else {
       rejected.push({ title: plan.title, issues: verdict.issues });
     }

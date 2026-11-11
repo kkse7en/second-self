@@ -3,11 +3,12 @@ import { AccountWorkspaceSchema, type AccountSnapshot, type AccountWorkspace } f
 import { DEFAULT_PROFILE, normalizeProfile } from "@/domain/profile";
 import { usePlannerStore } from "./store";
 import { migrateStoredPayload } from "./migrate";
-import { readAccountCache, removeAccountCache, setActiveAccountId, writeAccountCache } from "./account-cache";
+import { nextCacheStamp, readAccountCache, setActiveAccountId, writeAccountCache } from "./account-cache";
 
-export type SyncStatus = "saved" | "saving" | "offline" | "conflict" | "expired";
+export type SyncStatus = "saved" | "saving" | "offline" | "unsaved" | "conflict" | "expired";
 const META = "second-self/sync";
 function stableWorkspace(value: AccountWorkspace): AccountWorkspace {
+  value = AccountWorkspaceSchema.parse(value);
   return { ...value, planner: { ...value.planner, demoClock: value.planner.demoClock.source === "system" ? { iso: new Date(0).toISOString(), source: "system" } : value.planner.demoClock } };
 }
 function currentWorkspace(): AccountWorkspace {
@@ -21,7 +22,7 @@ function installWorkspace(workspace: AccountWorkspace) {
   usePlannerStore.setState({ ...workspace.planner, demoClock: workspace.planner.demoClock.source === "system" ? { iso: new Date().toISOString(), source: "system" } : workspace.planner.demoClock, lastError: null });
   window.dispatchEvent(new Event("second-self:profile"));
 }
-interface PendingCache { workspace: AccountWorkspace; revision: number; pending: boolean }
+interface PendingCache { workspace: AccountWorkspace; revision: number; pending: boolean; cacheStamp?: number }
 export class AccountSync {
   status: SyncStatus = "saved";
   error = "";
@@ -34,20 +35,37 @@ export class AccountSync {
   private unsubscribe: (() => void) | undefined;
   private listeners = new Set<() => void>();
   private userId: string;
+  private cacheSaved = true;
   constructor(snapshot: AccountSnapshot) {
     this.userId = snapshot.user.id; this.revision = snapshot.revision; this.saved = JSON.stringify(stableWorkspace(snapshot.workspace));
   }
   async activate(snapshot: AccountSnapshot) {
     setActiveAccountId(this.userId);
+    const cachedPlanner = readAccountCache("vibe-coding-2026/planner");
     await usePlannerStore.persist.rehydrate();
     if (this.stopped) return;
     let pending: PendingCache | null = null;
+    let cached: PendingCache | null = null;
     try {
       const value = JSON.parse(readAccountCache(META) ?? "null");
-      if (value?.pending && Number.isInteger(value.revision) && AccountWorkspaceSchema.safeParse(value.workspace).success) pending = value;
+      if (Number.isInteger(value?.revision) && value.revision >= 0 && typeof value.pending === "boolean" && AccountWorkspaceSchema.safeParse(value.workspace).success) { cached = value; if (value.pending) pending = value; }
     } catch { /* Ignore invalid local metadata, never invalid server data. */ }
+    let recovered = false;
+    if (cachedPlanner) {
+      try {
+        const raw = JSON.parse(cachedPlanner);
+        const valid = migrateStoredPayload(raw);
+        const plannerStamp = raw?.state?.cacheStamp;
+        const rawIsNewer = Number.isFinite(plannerStamp) && plannerStamp > (cached?.cacheStamp ?? 0);
+        if (valid.ok && (!pending || rawIsNewer)) {
+          const local = currentWorkspace();
+          const baseline = JSON.stringify(stableWorkspace(cached?.workspace ?? snapshot.workspace));
+          if (JSON.stringify(local) !== baseline) { pending = { workspace: local, revision: cached?.revision ?? snapshot.revision, pending: true }; recovered = true; }
+        }
+      } catch { /* Invalid cache cannot replace an authenticated server copy. */ }
+    }
     installWorkspace(pending?.workspace ?? snapshot.workspace);
-    if (pending && pending.revision !== snapshot.revision) { this.status = "conflict"; this.error = "另一个设备已有更新，请选择要保留的版本"; }
+    if (pending && (recovered || pending.revision !== snapshot.revision)) { this.status = "conflict"; this.error = recovered ? "发现尚未确认同步的本机修改，请选择要保留的版本" : "另一个设备已有更新，请选择要保留的版本"; }
     this.unsubscribe = usePlannerStore.subscribe(() => this.changed());
     window.addEventListener("second-self:profile", this.changed);
     window.addEventListener("online", this.reconnect);
@@ -61,7 +79,7 @@ export class AccountSync {
   private emit() { for (const listener of this.listeners) listener(); }
   private isDirty() { return JSON.stringify(currentWorkspace()) !== this.saved; }
   private checkpoint() {
-    writeAccountCache(META, JSON.stringify({ workspace: currentWorkspace(), revision: this.revision, pending: this.isDirty() }));
+    this.cacheSaved = writeAccountCache(META, JSON.stringify({ workspace: currentWorkspace(), revision: this.revision, pending: this.isDirty(), cacheStamp: nextCacheStamp() }));
   }
   private changed = () => {
     if (this.stopped || this.applying) return;
@@ -71,7 +89,7 @@ export class AccountSync {
     this.status = "saving"; this.error = ""; this.emit();
     clearTimeout(this.timer); this.timer = setTimeout(() => void this.flush(), 450);
   };
-  private reconnect = () => { if (this.status === "offline") void this.flush(); else void this.refresh(); };
+  private reconnect = () => { if (this.status === "offline" || this.status === "unsaved") void this.flush(); else void this.refresh(); };
   private visibility = () => { if (document.visibilityState === "visible") void this.refresh(); else void this.flush(); };
   private beforeUnload = (event: BeforeUnloadEvent) => { if (this.isDirty()) { event.preventDefault(); event.returnValue = ""; } };
   flush(): Promise<void> {
@@ -95,7 +113,9 @@ export class AccountSync {
     } catch (error) {
       if (this.stopped) return;
       if (this.status === "saving") this.status = "offline";
-      this.error = error instanceof Error ? error.message : "连接中断，修改已留在本机"; this.checkpoint();
+      this.checkpoint();
+      if (this.status === "offline" && !this.cacheSaved) this.status = "unsaved";
+      this.error = this.status === "unsaved" ? "账号与本机均未保存。请保持页面打开，重试保存或到设置导出备份" : error instanceof Error ? error.message : "连接中断，修改已留在本机";
     }
     this.emit();
   }
@@ -125,6 +145,10 @@ export class AccountSync {
     const data = await response.json();
     if (this.stopped) return;
     if (!response.ok || data.snapshot.user.id !== this.userId) throw new Error(data.error ?? "请重新登录");
+    if (JSON.stringify(currentWorkspace()) !== JSON.stringify(local)) {
+      this.status = "conflict"; this.error = "处理期间日程又有修改，请重新选择版本"; this.checkpoint(); this.emit();
+      throw new Error(this.error);
+    }
     const remote = AccountWorkspaceSchema.parse(data.snapshot.workspace);
     this.revision = data.snapshot.revision; this.saved = JSON.stringify(stableWorkspace(remote));
     this.applying = true; installWorkspace(keepLocal ? local : remote); this.applying = false;
@@ -137,7 +161,7 @@ export class AccountSync {
     const response = await fetch("/api/account/logout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accountId: this.userId }) });
     if (!response.ok) throw new Error("暂时无法退出，请稍后重试");
     this.stop();
-    for (const key of ["vibe-coding-2026/planner", "second-self/profile", META]) removeAccountCache(key);
+    // 缓存按账号隔离；不删除其他标签页可能仍在使用的共享副本。
     setActiveAccountId(null);
     usePlannerStore.setState({ tasks: [], snapshot: null, snapshotClock: null, snapshotTermStart: null, termStartDayKey: null, lastError: null, demoClock: { iso: new Date().toISOString(), source: "system" } });
     return true;

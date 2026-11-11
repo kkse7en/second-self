@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TaskSchema, type Task } from "@/domain/schemas/task";
+import { MAX_TASKS, TaskListSchema, TaskSchema, type Task } from "@/domain/schemas/task";
 import { DayKeySchema, TimestampSchema } from "@/domain/schemas/date";
 import type { PlannerPayload, Result } from "./storage";
 
@@ -17,6 +17,7 @@ import type { PlannerPayload, Result } from "./storage";
 export const SEED_VERSION = "v1";
 
 const PriorityTextSchema = z.enum(["high", "medium", "low"]);
+const ClockTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "时间须为00:00–23:59");
 
 export const SeedTaskSchema = z.object({
   id: z.string().min(1),
@@ -24,8 +25,8 @@ export const SeedTaskSchema = z.object({
   /** YYYY-MM-DD（本地时区）；纯 DDL 任务没有具体日期，为 null */
   date: DayKeySchema.nullable(),
   /** HH:mm 或 null（纯 DDL 任务） */
-  start: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
-  end: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+  start: ClockTimeSchema.nullable(),
+  end: ClockTimeSchema.nullable(),
   durationMin: z.number().int().min(0),
   deadline: z.string().nullable(),
   /** 种子里是 high/medium/low，落库要换成 1/2/3 */
@@ -42,7 +43,7 @@ export const DemoSeedSchema = z.object({
   seedVersion: z.literal(SEED_VERSION),
   demoNow: TimestampSchema,
   timezone: z.string().optional(),
-  tasks: z.array(SeedTaskSchema).min(1),
+  tasks: z.array(SeedTaskSchema).min(1).max(MAX_TASKS),
 });
 
 export type SeedTask = z.infer<typeof SeedTaskSchema>;
@@ -65,6 +66,8 @@ const PRIORITY_MAP: Record<"high" | "medium" | "low", 1 | 2 | 3> = {
 
 /** `2026-10-19` + `08:00` → 本地时区 ISO；end 早于 start 视为跨天，顺延一天 */
 export function seedTimeToIso(date: string, time: string, crossesMidnight = false): string {
+  DayKeySchema.parse(date);
+  ClockTimeSchema.parse(time);
   const [y, m, d] = date.split("-").map((part) => Number.parseInt(part, 10));
   const [hh, mm] = time.split(":").map((part) => Number.parseInt(part, 10));
   const ms = new Date(
@@ -91,6 +94,9 @@ export function adaptDemoSeed(raw: unknown): Result<PlannerPayload> {
 
   const tasks: Task[] = [];
   for (const [index, seed] of parsed.data.tasks.entries()) {
+    if ((seed.start === null) !== (seed.end === null)) {
+      return { ok: false, error: `第 ${index + 1} 条「${seed.title}」的开始与结束必须成对出现` };
+    }
     const hasTime = seed.start !== null && seed.end !== null;
     // 时间段必须有日期才谈得上"排布"；只有截止日的任务 date 允许为 null
     if (hasTime && seed.date === null) {
@@ -136,5 +142,7 @@ export function adaptDemoSeed(raw: unknown): Result<PlannerPayload> {
     tasks.push(checked.data);
   }
 
-  return { ok: true, value: { tasks, snapshot: null } };
+  const checked = TaskListSchema.safeParse(tasks);
+  if (!checked.success) return { ok: false, error: checked.error.issues[0]?.message ?? "演示种子日程不合法" };
+  return { ok: true, value: { tasks: checked.data, snapshot: null } };
 }

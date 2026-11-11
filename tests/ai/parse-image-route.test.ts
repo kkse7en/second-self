@@ -60,6 +60,11 @@ describe("POST /api/ai/parse-image", () => {
     const response = await post({ imageDataUrl: TINY_PNG, dayKey: "2026/10/19" });
     expect(response.status).toBe(400);
   });
+  it.each([TINY_PNG.replace("image/png", "image/jpeg"), TINY_PNG + "!", "data:image/png;base64," + "A".repeat(100)])("非法编码或MIME不匹配在模型前拒绝", async imageDataUrl => {
+    const response = await post({ imageDataUrl, dayKey: "2026-10-19" });
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+  });
 
   it("合法请求 + demo 模式 → 422 诚实失败，而不是假任务", async () => {
     const response = await post({ imageDataUrl: TINY_PNG, dayKey: "2026-10-19" });

@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { describeAiError, getClient, providerRequestOptions, type AiRuntimeConfig } from "./client";
 
 /**
@@ -83,22 +84,25 @@ export async function callStructuredJson<T>(
     try {
       const userContent = options.imageDataUrl
         ? [
-            { type: "text" as const, text: attempt === 1 ? options.user : options.buildRepairUser(issues) },
+            { type: "text" as const, text: options.user },
             { type: "image_url" as const, image_url: { url: options.imageDataUrl, detail: "high" as const } },
           ]
-        : attempt === 1
-          ? options.user
-          : options.buildRepairUser(issues);
+        : options.user;
+      const messages: ChatCompletionMessageParam[] = [
+        { role: "system", content: options.system },
+        { role: "user", content: userContent },
+      ];
+      if (attempt > 1 && raw !== undefined) {
+        messages.push({ role: "assistant", content: raw.slice(0, 16_000) });
+        messages.push({ role: "user", content: options.buildRepairUser(issues) });
+      }
       const completion = await client.chat.completions.create({
         model: config.model,
         temperature: attempt === 1 ? 0.2 : 0,
         max_tokens: options.maxOutputTokens ?? 2000,
         response_format: { type: "json_object" },
         ...providerRequestOptions(config),
-        messages: [
-          { role: "system", content: options.system },
-          { role: "user", content: userContent },
-        ],
+        messages,
       });
       content = completion.choices[0]?.message?.content ?? "";
       timings.push({ phase: `模型调用 #${attempt}`, ms: now() - t0 });

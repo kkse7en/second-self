@@ -109,7 +109,7 @@ export function parseLocalTasks(text: string, dayKey: string): TaskDraft[] {
         const h = PM_RE.test(line) && rawHour < 12 ? rawHour + 12 : rawHour;
         const explicitDuration = extractDuration(line);
         // EXPECTED 表：只给开始时间时默认 90 分钟（志愿者培训）
-        durationMin = explicitDuration ?? 90;
+        durationMin = explicitDuration ?? DEFAULT_INFERRED_DURATION_MIN;
         start = isoAt(baseDay, h * 60 + m);
         end = isoAt(baseDay, h * 60 + m + durationMin);
         // 时长是估的 → 打标记，界面会显示成「约 90 分钟 · 待确认」，不许假装确定
@@ -331,3 +331,4 @@ function shiftDay(dayKey: string, days: number): string {
     .toLocaleDateString("sv-SE")
     .slice(0, 10);
 }
+import { DEFAULT_INFERRED_DURATION_MIN } from "@/shared/constants";

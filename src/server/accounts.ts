@@ -2,11 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
-import { AccountWorkspaceSchema, emptyAccountWorkspace, type AccountSnapshot, type AccountWorkspace } from "@/domain/account";
+import { AccountWorkspaceSchema, emptyAccountWorkspace, type AccountSnapshot, type AccountUser, type AccountWorkspace } from "@/domain/account";
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
-export class AccountError extends Error { constructor(public status: number, message: string) { super(message); } }
+export class AccountError extends Error { constructor(public status: number, message: string, public retryAfterSec?: number) { super(message); } }
 function passwordKey(password: string, salt: string): Promise<Buffer> {
   return new Promise((resolve, reject) => scrypt(password, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (error, key) => error ? reject(error) : resolve(key)));
 }
@@ -48,9 +48,13 @@ export class AccountRepository {
     return token;
   }
   session(token: string | undefined): AccountSnapshot | null {
+    const identity = this.identity(token);
+    return identity ? this.snapshot(identity.user.id) : null;
+  }
+  identity(token: string | undefined): { user: AccountUser } | null {
     if (!token || token.length > 128) return null;
-    const row = this.db.prepare("SELECT user_id FROM sessions WHERE token_hash = ? AND expires_at > ?").get(digest(token), Date.now()) as { user_id: string } | undefined;
-    return row ? this.snapshot(row.user_id) : null;
+    const row = this.db.prepare("SELECT users.id, users.username FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ?").get(digest(token), Date.now()) as AccountUser | undefined;
+    return row ? { user: { id: row.id, username: row.username } } : null;
   }
   logout(token: string | undefined) { if (token) this.db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(digest(token)); }
   snapshot(userId: string): AccountSnapshot {
@@ -70,6 +74,11 @@ export class AccountRepository {
     const row = this.db.prepare("INSERT INTO auth_attempts VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 RETURNING count").get(digest(key), now + windowMs) as { count: number };
     return row.count <= max;
   }
+  retryAfter(key: string, max: number): number {
+    const row = this.db.prepare("SELECT count, reset_at FROM auth_attempts WHERE key = ?").get(digest(key)) as { count: number; reset_at: number } | undefined;
+    return row && row.count >= max && row.reset_at > Date.now() ? Math.max(1, Math.ceil((row.reset_at - Date.now()) / 1000)) : 0;
+  }
+  clearAttempts(key: string) { this.db.prepare("DELETE FROM auth_attempts WHERE key = ?").run(digest(key)); }
 }
 let repository: AccountRepository | undefined;
 export function accountRepository(): AccountRepository {

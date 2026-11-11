@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIP } from "node:net";
 import { AccountError, accountRepository } from "./accounts";
 
 export const SESSION_COOKIE = "second-self-session";
@@ -7,7 +8,7 @@ export function privateJson(body: unknown, status = 200) {
 }
 export function sessionToken(request: NextRequest) { return request.cookies.get(SESSION_COOKIE)?.value; }
 export function requireAccount(request: NextRequest) {
-  const snapshot = accountRepository().session(sessionToken(request));
+  const snapshot = accountRepository().identity(sessionToken(request));
   if (!snapshot) throw new AccountError(401, "登录已过期，请重新登录");
   return snapshot;
 }
@@ -35,6 +36,16 @@ export function withSession(response: NextResponse, request: NextRequest, token:
   return response;
 }
 export function accountFailure(error: unknown) {
-  if (error instanceof AccountError) return privateJson({ ok: false, error: error.message }, error.status);
+  if (error instanceof AccountError) {
+    const response = privateJson({ ok: false, error: error.message }, error.status);
+    if (error.retryAfterSec) response.headers.set("Retry-After", String(error.retryAfterSec));
+    return response;
+  }
   return privateJson({ ok: false, error: "账号服务暂时不可用，请稍后重试" }, 503);
+}
+/** 仅信任由部署者配置、且代理覆盖写入的单IP请求头。默认不信任转发头。 */
+export function authSource(request: NextRequest): string {
+  const header = process.env.TRUSTED_CLIENT_IP_HEADER?.trim().toLowerCase();
+  const value = header ? request.headers.get(header)?.trim() : undefined;
+  return value && isIP(value) ? value : "local";
 }

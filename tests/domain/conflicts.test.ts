@@ -589,7 +589,9 @@ describe("任务契约", () => {
       repeat: { kind: "weekly", byDay: [2] },
       locked: true,
     };
-    const parsed = AiTaskDraftSchema.parse(draft);
+    expect(AiTaskDraftSchema.safeParse(draft).success).toBe(false);
+    const { locked: _locked, ...allowed } = draft;
+    const parsed = AiTaskDraftSchema.parse(allowed);
     expect(parsed.repeat).toEqual({ kind: "weekly", byDay: [2] });
     expect(parsed).not.toHaveProperty("locked");
   });

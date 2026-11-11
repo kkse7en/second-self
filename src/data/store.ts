@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { accountStorageKey } from "./account-cache";
+import { accountStorageKey, nextCacheStamp } from "./account-cache";
 import { isValidDayKey, isValidTimestamp } from "@/domain/schemas/date";
 import { MAX_TASKS, TaskListSchema, TaskSchema, type Task, type TaskDraft } from "@/domain/schemas/task";
 import { guardPlan, type PlanContext } from "@/domain/planGuard";
@@ -332,10 +332,11 @@ export const usePlannerStore = create<PlannerState>()(
       dismissError: () => set({ lastError: null }),
 
       exportJson: () => {
-        const { tasks, snapshot } = get();
+        const { tasks } = get();
         try {
           const now = new Date();
-          const envelope = { ...buildExportEnvelope({ tasks, snapshot }, now), settings: { demoClock: get().demoClock, termStartDayKey: get().termStartDayKey } };
+          // 文件恢复当前安排；导入时的撤销保留导入前的本机安排。
+          const envelope = { ...buildExportEnvelope({ tasks, snapshot: null }, now), settings: { demoClock: get().demoClock, termStartDayKey: get().termStartDayKey } };
           return { ok: true, text: serializeExport(envelope), filename: exportFileName(now) };
         } catch {
           return { ok: false, error: "生成导出文件失败" };
@@ -395,7 +396,7 @@ export const usePlannerStore = create<PlannerState>()(
         removeItem: name => { const key = accountStorageKey(name); if (key) browserAdapter.removeItem(key); },
       })),
       skipHydration: true,
-      partialize: (state) => ({ tasks: state.tasks, snapshot: state.snapshot, snapshotClock: state.snapshotClock, snapshotTermStart: state.snapshotTermStart, demoClock: state.demoClock, termStartDayKey: state.termStartDayKey }),
+      partialize: (state) => ({ tasks: state.tasks, snapshot: state.snapshot, snapshotClock: state.snapshotClock, snapshotTermStart: state.snapshotTermStart, demoClock: state.demoClock, termStartDayKey: state.termStartDayKey, cacheStamp: nextCacheStamp() }),
       merge: (persisted, current) => {
         const migrated = migrateStoredPayload(persisted);
         if (!migrated.ok) return current;

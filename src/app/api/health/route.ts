@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { privateJson } from "@/server/account-http";
 import { accountRepository } from "@/server/accounts";
 import { resolveAiMode } from "@/ai";
 import { ARCHITECTURE_LAYERS, APP_NAME, APP_VERSION } from "@/shared/constants";
@@ -34,19 +34,18 @@ async function checkData(): Promise<CheckResult> {
 function checkAi(): CheckResult {
   const mode = resolveAiMode(process.env.LLM_API_KEY);
   if (mode === "live") {
-    const model = process.env.LLM_MODEL?.trim();
     return {
       name: "ai.mode",
       ok: true,
-      detail: model ? `live · ${model}` : "live · 未指定 LLM_MODEL",
+      detail: "live · 已配置，未探测模型连通性",
     };
   }
-  return { name: "ai.mode", ok: true, detail: "demo · 无密钥走固定响应" };
+  return { name: "ai.mode", ok: true, detail: "demo · 本地文字规则与确定性重排" };
 }
 
 export async function GET() {
   const checks: CheckResult[] = [
-    { name: "runtime.nodejs", ok: true, detail: `Node ${process.versions.node}` },
+    { name: "runtime.nodejs", ok: true, detail: "Node运行环境可用" },
     { name: "route.reachable", ok: true, detail: "GET /api/health" },
     await checkData(),
     checkAi(),
@@ -64,8 +63,8 @@ export async function GET() {
     app: {
       name: APP_NAME,
       version: APP_VERSION,
-      env: process.env.NODE_ENV ?? "development",
-      node: process.versions.node,
+      env: "server",
+      node: "Node.js",
     },
     aiMode: resolveAiMode(process.env.LLM_API_KEY),
     layers,
@@ -76,11 +75,8 @@ export async function GET() {
   // schema 先于响应：产出也要过契约，防止字段漂移传到前端才发现
   const parsed = HealthReportSchema.safeParse(report);
   if (!parsed.success) {
-    return NextResponse.json(
-      { status: "degraded", error: "自检报告不符合契约", issues: parsed.error.issues },
-      { status: 500 },
-    );
+    return privateJson({ status: "degraded", error: "自检暂时不可用" }, 500);
   }
 
-  return NextResponse.json(parsed.data, { status: 200 });
+  return privateJson(parsed.data, report.status === "ok" ? 200 : 503);
 }

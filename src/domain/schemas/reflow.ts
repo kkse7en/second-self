@@ -135,19 +135,19 @@ export const ReplanPlanSchema = z.object({
 });
 export type ReplanPlan = z.infer<typeof ReplanPlanSchema>;
 
-/** 模型输出契约：不带 id（由服务端补），最多 3 套 */
+/** 模型输出契约：不带 id；只保留1–2套有实际差异的方案。 */
 export const AiReplanOutputSchema = z.object({
   plans: z
     .array(
-      z.object({
+      z.strictObject({
         title: z.string().trim().min(1).max(60),
-        rationale: z.string().trim().min(1).max(400),
-        blocks: z.array(PlanBlockSchema).min(1).max(40),
+        rationale: z.string().trim().min(1).max(80),
+        blocks: z.array(PlanBlockSchema.strict()).min(1).max(40),
       }),
     )
-    .min(2)
-    .max(3),
-});
+    .min(1)
+    .max(2),
+}).strict();
 export type AiReplanOutput = z.infer<typeof AiReplanOutputSchema>;
 
 export const PlanOptionsSchema = z.object({

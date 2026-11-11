@@ -19,6 +19,14 @@ const response = (hour: number) => ({ choices: [{ message: { content: JSON.strin
 
 describe("重排补充与约束修复", () => {
   beforeEach(() => create.mockReset());
+  it("只需一套时可成功，重复候选只展示一次", async () => {
+    create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ plans: [plan(19)] }) } }] });
+    const single = await replanForDay(input, config);
+    expect(single.ok && single.plans.length).toBe(1);
+    create.mockResolvedValueOnce(response(19));
+    const duplicate = await replanForDay(input, config);
+    expect(duplicate.ok && duplicate.plans.length).toBe(1);
+  });
   it("兼容原请求，补充去空格且限制长度", () => {
     expect(ReplanRequestSchema.safeParse(input).success).toBe(true);
     expect(ReplanRequestSchema.parse({ ...input, feedback: "  晚饭后再写  " }).feedback).toBe("晚饭后再写");
@@ -48,7 +56,8 @@ describe("重排补充与约束修复", () => {
     create.mockResolvedValueOnce(invalid).mockResolvedValueOnce(response(19));
     const result = await replanForDay(input, config);
     expect(result.ok).toBe(true); expect(create).toHaveBeenCalledTimes(2);
-    expect(create.mock.calls[1]![0].messages[1].content).toContain("不能把任务排入已过去的时间");
+    expect(create.mock.calls[1]![0].messages.at(-1).content).toContain("不能把任务排入已过去的时间");
+    expect(create.mock.calls[1]![0].messages[2]).toEqual({ role: "assistant", content: invalid.choices[0]!.message.content });
   });
   it("无模型时不假称本地算法理解了补充", async () => {
     const result = await replanForDay({ ...input, feedback: "晚饭后再写" }, { ...config, mode: "demo" });

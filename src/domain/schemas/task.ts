@@ -196,7 +196,7 @@ export const TaskListSchema = z.array(TaskSchema).max(MAX_TASKS, `最多保存${
 });
 export const TaskDraftListSchema = z.array(TaskDraftSchema).min(1).max(60);
 
-/** AI 结构化输出契约：只允许这 9 个字段，多一个都不要 */
+/** AI输出字段白名单；不允许模型设置锁定等用户权威字段。 */
 export const AiTaskDraftSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
@@ -208,17 +208,19 @@ export const AiTaskDraftSchema = z
     rawTextOrigin: z.string().max(500).nullable(),
     /** 模型必须自评：这一条是不是靠猜的（必填，不许省略） */
     needsReview: z.boolean(),
+    durationInferred: z.boolean().optional(),
     /**
      * 周期安排：「每周二晚 9 点」→ { kind:'weekly', byDay:[2] }，不许展开成多条。
      * **必填**：不填就等于"解析器根本没这个能力"，模型也无处承接（byDay 用 ISO 星期 1=周一…7=周日）。
      * 单次任务必须显式给 null。
      */
-    repeat: RepeatRuleSchema.nullable(),
+    repeat: RepeatRuleSchema.strict().nullable(),
   })
+  .strict()
   .superRefine(refineTimeBlock);
 export type AiTaskDraft = z.infer<typeof AiTaskDraftSchema>;
 
 export const AiParseOutputSchema = z.object({
   tasks: z.array(AiTaskDraftSchema).min(1).max(40),
-});
+}).strict();
 export type AiParseOutput = z.infer<typeof AiParseOutputSchema>;

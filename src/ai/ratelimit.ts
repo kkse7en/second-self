@@ -9,6 +9,8 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 4096;
+let nextSweep = 0;
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -22,6 +24,11 @@ export function checkRateLimit(
   windowMs = 60_000,
   now: number = Date.now(),
 ): RateLimitResult {
+  if (now >= nextSweep || buckets.size >= MAX_BUCKETS) {
+    for (const [id, bucket] of buckets) if (now >= bucket.resetAt) buckets.delete(id);
+    nextSweep = now + 60_000;
+  }
+  if (!buckets.has(key) && buckets.size >= MAX_BUCKETS) return { allowed: false, remaining: 0, retryAfterSec: 60 };
   const bucket = buckets.get(key);
   if (!bucket || now >= bucket.resetAt) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });
@@ -38,14 +45,8 @@ export function checkRateLimit(
   return { allowed: true, remaining: limit - bucket.count, retryAfterSec: 0 };
 }
 
-/** 从请求头里取一个尽力而为的调用方标识（本地开发全部落在 "local"） */
-export function clientKeyOf(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return request.headers.get("x-real-ip") ?? "local";
-}
-
 /** 测试用：清空计数 */
 export function resetRateLimit(): void {
   buckets.clear();
+  nextSweep = 0;
 }

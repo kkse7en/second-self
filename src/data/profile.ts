@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { DEFAULT_PROFILE, normalizeProfile, type Profile } from "@/domain/profile";
-import { accountStorageKey, readAccountCache, writeAccountCache } from "./account-cache";
+import { accountStorageKey, discardVolatileAccountCache, readAccountCache, writeAccountCache } from "./account-cache";
 
 const KEY = "second-self/profile";
 export function useProfile() {
@@ -20,7 +20,7 @@ export function useProfile() {
   function save(next: Profile): boolean {
     const normalized = normalizeProfile(next);
     try {
-      if (!writeAccountCache(KEY, JSON.stringify(normalized))) return false;
+      if (!writeAccountCache(KEY, JSON.stringify(normalized))) { discardVolatileAccountCache(KEY); return false; }
       setProfile(normalized); window.dispatchEvent(new Event("second-self:profile")); return true;
     }
     catch { return false; }

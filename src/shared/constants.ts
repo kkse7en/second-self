@@ -2,6 +2,7 @@
 export const APP_NAME = "第二自我";
 export const APP_SUBTITLE = "校园日程与冲突规划助手";
 export const APP_VERSION = "1.0.0";
+export const DEFAULT_INFERRED_DURATION_MIN = 90;
 
 /** 应用目录边界；认证与SQLite实现另位于 src/server。 */
 export const ARCHITECTURE_LAYERS = [

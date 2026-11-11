@@ -70,6 +70,17 @@ export interface CoverageDraftInput {
   title: string;
 }
 
+/** 反向核对任务出处。字面无法对上的摘要只标待核对，不替用户删除。 */
+export function unsupportedDraftIndexes(sourceText: string, drafts: readonly CoverageDraftInput[]): number[] {
+  const lines = sourceText.split(LINE_SPLIT_RE).map(normalizeLine).filter(line => line.length >= 2);
+  return drafts.flatMap((draft, index) => {
+    const origin = normalizeLine(draft.rawTextOrigin ?? "");
+    const title = normalizeLine(draft.title);
+    const matching = origin.length >= 2 ? lines.filter(line => line.includes(origin)) : lines;
+    return matching.some(line => lineCovered(title, [line])) ? [] : [index];
+  });
+}
+
 /** 归一化：全角数字转半角、去标点空白、转小写。空串表示这行没有信息量。 */
 export function normalizeLine(input: string): string {
   return input

@@ -7,10 +7,7 @@ import { Button } from "@/ui/primitives";
 import { PlanningLoading } from "./PlanningLoading";
 import { useLoadingCycle } from "./useLoadingCycle";
 
-/**
- * 数据可携带性 —— 「数据不出本机」这个卖点的可操作证明：
- * 一键导出单文件 JSON，换台机器/换浏览器导入回来，任务与撤销快照都在。
- */
+/** 导出当前日程与设置；导入建立导入前快照，支持撤销。 */
 export function DataPortability() {
   const cycle = useLoadingCycle();
   const [busy, setBusy] = useState(false);

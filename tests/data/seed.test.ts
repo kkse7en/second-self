@@ -15,6 +15,18 @@ const SEED_PATH = join(process.cwd(), "docs", "demo-fixtures", "demo-seed.json")
 const seedRaw: unknown = JSON.parse(readFileSync(SEED_PATH, "utf8"));
 
 describe("demo-seed 转换", () => {
+  it("不接受越界时钟、半个时段或重复id，合法跨夜仍可导入", () => {
+    const seed = seedRaw as { tasks: Record<string, unknown>[] };
+    const item = seed.tasks[0]!;
+    for (const clock of ["25:00", "12:99", "24:00"]) {
+      expect(adaptDemoSeed({ ...seed, tasks: [{ ...item, start: clock }] }).ok).toBe(false);
+    }
+    expect(adaptDemoSeed({ ...seed, tasks: [{ ...item, end: null }] }).ok).toBe(false);
+    expect(adaptDemoSeed({ ...seed, tasks: [item, item] }).ok).toBe(false);
+    expect(adaptDemoSeed({ ...seed, tasks: Array.from({length: 5001}, (_, i) => ({ ...item, id: String(i) })) }).ok).toBe(false);
+    expect(adaptDemoSeed({ ...seed, tasks: [{ ...item, start: "23:30", end: "00:30", durationMin: 60 }] }).ok).toBe(true);
+    expect(() => seedTimeToIso("2026-10-19", "25:00")).toThrow();
+  });
   it("能识别出这是演示种子", () => {
     expect(isDemoSeed(seedRaw)).toBe(true);
   });

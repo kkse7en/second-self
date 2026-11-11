@@ -10,6 +10,17 @@ const full = () => Array.from({ length: 5000 }, (_, i) => ({ ...base, id: `task-
 beforeEach(() => usePlannerStore.setState({ tasks: [], snapshot: null, lastError: null }));
 
 describe("导入与账号共用数据边界", () => {
+  it("导出只保存当前安排，导入后撤销回到导入前", () => {
+    usePlannerStore.setState({ tasks: [base], snapshot: [{ ...base, title: "旧快照" }] });
+    const file = usePlannerStore.getState().exportJson();
+    expect(file.ok).toBe(true);
+    expect(JSON.parse(file.text!).data.snapshot).toBeNull();
+    const before = [{ ...base, title: "导入前" }];
+    usePlannerStore.setState({ tasks: before });
+    expect(usePlannerStore.getState().importJson(file.text!).ok).toBe(true);
+    usePlannerStore.getState().undo();
+    expect(usePlannerStore.getState().tasks).toEqual(before);
+  });
   it("拒绝非法截止日期，防止日程渲染异常", () => {
     expect(TaskSchema.safeParse({ ...base, deadline: "not-a-date" }).success).toBe(false);
   });

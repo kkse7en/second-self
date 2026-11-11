@@ -6,6 +6,7 @@ import {
   normalizeLine,
   similarity,
   unverifiedCoverage,
+  unsupportedDraftIndexes,
   type CoverageDraftInput,
 } from "@/domain/completeness";
 
@@ -17,6 +18,14 @@ import {
 function draft(rawTextOrigin: string | null, title: string): CoverageDraftInput {
   return { rawTextOrigin, title };
 }
+
+describe("任务反向溯源", () => {
+  it("新增的虚构事项、虚构出处及借用真出处均标待核对", () => {
+    const source = "周三14:00小组会议";
+    expect(unsupportedDraftIndexes(source, [draft(source, "小组会议"), draft("周五游泳", "游泳"), draft(source, "电影预约")])).toEqual([1, 2]);
+    expect(unsupportedDraftIndexes(source, [draft(null, "小组会议")])).toEqual([]);
+  });
+});
 
 describe("normalizeLine", () => {
   it("全角数字转半角、标点与空白全去掉", () => {

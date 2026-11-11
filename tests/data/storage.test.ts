@@ -36,6 +36,11 @@ describe("导出信封", () => {
 });
 
 describe("导入迁移", () => {
+  it("信封拒绝小数版本及无效导出时间", () => {
+    const envelope = buildExportEnvelope({ tasks: [task], snapshot: null }, new Date());
+    expect(migrateImportedPayload({ ...envelope, version: 1.5 }).ok).toBe(false);
+    expect(migrateImportedPayload({ ...envelope, exportedAt: "broken" }).ok).toBe(false);
+  });
   it("接受自己导出的文件（往返一致）", () => {
     const envelope = buildExportEnvelope({ tasks: [task], snapshot: [task] }, new Date());
     const result = migrateImportedPayload(JSON.parse(serializeExport(envelope)));

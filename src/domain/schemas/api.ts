@@ -3,6 +3,7 @@ import { TaskDraftSchema, TaskSchema } from "./task";
 import { CoverageReportSchema } from "../completeness";
 import { ReplanPlanSchema } from "../reflow";
 import { DayKeySchema } from "./date";
+import { isSupportedImageDataUrl } from "../image";
 
 /**
  * API DTO 契约 —— 服务端返回什么、客户端接受什么，都从这里取。
@@ -79,15 +80,13 @@ export type AllowedImageMime = (typeof ALLOWED_IMAGE_MIME)[number];
  */
 export const MAX_IMAGE_DATA_URL_LENGTH = 3_200_000;
 
-const IMAGE_DATA_URL_PREFIX_RE = /^data:(image\/(?:png|jpeg|webp));base64,/;
-
 export const ParseImageRequestSchema = z.object({
   /** data:image/png;base64,... —— 客户端压缩后上传，服务端不再做解码 */
   imageDataUrl: z
     .string()
     .min(64, "图片内容为空")
     .max(MAX_IMAGE_DATA_URL_LENGTH, "图片太大，请压缩后再传（建议长边 ≤1400px）")
-    .refine((value) => IMAGE_DATA_URL_PREFIX_RE.test(value), "只支持 PNG / JPEG / WebP 的 base64 data URL"),
+    .refine((value) => value.length <= MAX_IMAGE_DATA_URL_LENGTH && isSupportedImageDataUrl(value), "只支持编码完整且文件类型匹配的 PNG / JPEG / WebP 图片"),
   /** 客户端本地日期，模型据此换算"周三""下周一" */
   dayKey: DayKeySchema,
   /** 用户附带的半句话（可选）。有就比没有准，但没有也必须能跑 */

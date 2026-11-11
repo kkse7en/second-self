@@ -8,6 +8,7 @@ import { GET, PUT } from "@/app/api/account/workspace/route";
 import { POST as parseText } from "@/app/api/ai/parse-tasks/route";
 import { POST as parseImage } from "@/app/api/ai/parse-image/route";
 import { POST as replan } from "@/app/api/ai/replan/route";
+import { authSource } from "@/server/account-http";
 let repo: AccountRepository;
 vi.mock("@/server/accounts", async original => ({ ...await original<typeof import("@/server/accounts")>(), accountRepository: () => repo }));
 const base = "http://localhost";
@@ -15,8 +16,38 @@ function request(path: string, body?: unknown, token?: string, origin = base) {
   return new NextRequest(base + path, { method: body === undefined ? "GET" : "POST", headers: { Origin: origin, "content-type": "application/json", ...(token ? { cookie: "second-self-session=" + token } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 beforeEach(() => { repo = new AccountRepository(":memory:"); });
-afterEach(() => { repo.close(); });
+afterEach(() => { repo.close(); vi.unstubAllEnvs(); });
 describe("账号接口授权与会话", () => {
+  it("成功登录不消耗失败次数，并清除同来源账号的失败计数", async () => {
+    await repo.register("person_a", "test-only-password", "名字");
+    const userKey = JSON.stringify(["login-user", "local", "person_a"]);
+    for (let i=0;i<14;i++) repo.allowAttempt(userKey, 15);
+    for (let i=0;i<17;i++) {
+      expect((await login(request("/api/account/login", { username: "person_a", password: "test-only-password" }))).status).toBe(200);
+    }
+    expect(repo.retryAfter(userKey, 1)).toBe(0);
+    expect(repo.retryAfter("login-source:local", 1)).toBe(0);
+  });
+  it("错误登录达到阈值返回429和Retry-After，默认不信任伪造IP", async () => {
+    const userKey = JSON.stringify(["login-user", "local", "person_a"]);
+    for (let i=0;i<14;i++) repo.allowAttempt(userKey, 15);
+    expect((await login(request("/api/account/login", { username: "person_a", password: "wrong-password" }))).status).toBe(401);
+    const blocked = await login(request("/api/account/login", { username: "person_a", password: "wrong-password" }));
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    vi.stubEnv("TRUSTED_CLIENT_IP_HEADER", "");
+    expect(authSource(new NextRequest(base, { headers: { "x-forwarded-for": "1.2.3.4", "x-real-ip": "1.2.3.4" } }))).toBe("local");
+    vi.stubEnv("TRUSTED_CLIENT_IP_HEADER", "x-real-ip");
+    expect(authSource(new NextRequest(base, { headers: { "x-real-ip": "1.2.3.4" } }))).toBe("1.2.3.4");
+    expect(authSource(new NextRequest(base, { headers: { "x-real-ip": "1.2.3.4, 5.6.7.8" } }))).toBe("local");
+  });
+  it("轻量鉴权不读取整个工作区", async () => {
+    const a = await repo.register("person_a", "test-only-password", "名字");
+    const token = repo.createSession(a.user.id);
+    const read = vi.spyOn(repo, "snapshot");
+    expect(repo.identity(token)?.user.id).toBe(a.user.id);
+    expect(read).not.toHaveBeenCalled();
+  });
   it("注册签发安全Cookie，登录可取回本人资料", async () => {
     const response = await register(request("/api/account/register", { username: "person_a", password: "test-only-password", name: "我的日程" }));
     expect(response.status).toBe(201);

@@ -30,6 +30,20 @@ afterEach(() => repo.close());
 const headers = () => ({ Origin: "http://localhost", "content-type": "application/json", cookie: "second-self-session=" + token });
 
 describe("AI入口请求体上限", () => {
+  it.each(endpoints)("$name 的意外异常仍返回私有JSON且不泄露原文", async ({ name, handler, schema }) => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const imageDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwAB/gGr2yQzAAAAAElFTkSuQmCC";
+    const body = name === "replan" ? { tasks: [], dayKey: "2026-11-11" } : name === "parse-image" ? { imageDataUrl, dayKey: "2026-11-11" } : { text: "14:00小组会议", dayKey: "2026-11-11" };
+    model.mockRejectedValueOnce(new Error("private-user-text sk-secret"));
+    const response = await handler(new NextRequest("http://localhost/api/ai/" + name, { method: "POST", headers: headers(), body: JSON.stringify(body) }));
+    expect(response.status).toBe(500);
+    const json = await response.json();
+    expect(schema.safeParse(json).success).toBe(true);
+    expect(JSON.stringify(json)).not.toMatch(/private-user-text|sk-secret/);
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-user-text|sk-secret/);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    log.mockRestore();
+  });
   it.each(endpoints)("$name 在读取声明超限的请求前返回413", async ({ name, handler, limit, schema }) => {
     const request = new NextRequest("http://localhost/api/ai/" + name, { method: "POST", headers: { ...headers(), "content-length": String(limit + 1) }, body: "{}" });
     const response = await handler(request);
