@@ -1,0 +1,263 @@
+{
+  "date": "2026-11-14",
+  "unit": {
+    "files": 42,
+    "tests": 488,
+    "passed": true
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "productionBuild": "passed",
+  "productionBrowser": {
+    "date": "2026-11-14T09:23:11.097Z",
+    "mode": "production-local-rules",
+    "checks": [
+      {
+        "name": "default-avatar-loaded",
+        "ok": true
+      },
+      {
+        "name": "no-embedded-loading-frame",
+        "ok": true
+      },
+      {
+        "name": "responsive-320",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 832,
+          "height": 844
+        }
+      },
+      {
+        "name": "responsive-390",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 832,
+          "height": 844
+        }
+      },
+      {
+        "name": "responsive-768",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 1068,
+          "height": 1080
+        }
+      },
+      {
+        "name": "responsive-1440",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 1068,
+          "height": 1080
+        }
+      },
+      {
+        "name": "objectives-change-actual-times",
+        "ok": true
+      },
+      {
+        "name": "mobile-plan-fits",
+        "ok": true
+      },
+      {
+        "name": "adopt-returns-to-schedule",
+        "ok": true
+      },
+      {
+        "name": "undo-restores-risks",
+        "ok": true
+      },
+      {
+        "name": "intake-needs-explicit-choice",
+        "ok": true
+      },
+      {
+        "name": "one-off-needs-original-date",
+        "ok": true
+      },
+      {
+        "name": "mobile-notice-fits",
+        "ok": true
+      },
+      {
+        "name": "one-off-course-updated",
+        "ok": true
+      },
+      {
+        "name": "next-week-course-preserved",
+        "ok": true
+      },
+      {
+        "name": "sample-reset",
+        "ok": true
+      },
+      {
+        "name": "sample-no-account-cache",
+        "ok": true
+      },
+      {
+        "name": "register-through-ui",
+        "ok": true
+      },
+      {
+        "name": "single-default-avatar",
+        "ok": true
+      },
+      {
+        "name": "profile-auto-save",
+        "ok": true
+      },
+      {
+        "name": "task-auto-save",
+        "ok": true
+      },
+      {
+        "name": "sample-isolates-account",
+        "ok": true
+      },
+      {
+        "name": "reload-restores-task",
+        "ok": true
+      },
+      {
+        "name": "logout-completes",
+        "ok": true
+      },
+      {
+        "name": "login-restores-workspace",
+        "ok": true
+      },
+      {
+        "name": "no-unhandled-page-errors",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "name": "no-external-page-requests",
+        "ok": true,
+        "detail": []
+      }
+    ],
+    "errors": []
+  },
+  "staticSample": {
+    "date": "2026-11-14T09:19:52.089Z",
+    "mode": "static-local-rules",
+    "checks": [
+      {
+        "name": "default-avatar-loaded",
+        "ok": true
+      },
+      {
+        "name": "no-embedded-loading-frame",
+        "ok": true
+      },
+      {
+        "name": "responsive-320",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 832,
+          "height": 844
+        }
+      },
+      {
+        "name": "responsive-390",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 832,
+          "height": 844
+        }
+      },
+      {
+        "name": "responsive-768",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 1068,
+          "height": 1080
+        }
+      },
+      {
+        "name": "responsive-1440",
+        "ok": true,
+        "detail": {
+          "overflow": false,
+          "bottom": 1068,
+          "height": 1080
+        }
+      },
+      {
+        "name": "objectives-change-actual-times",
+        "ok": true
+      },
+      {
+        "name": "mobile-plan-fits",
+        "ok": true
+      },
+      {
+        "name": "adopt-returns-to-schedule",
+        "ok": true
+      },
+      {
+        "name": "undo-restores-risks",
+        "ok": true
+      },
+      {
+        "name": "intake-needs-explicit-choice",
+        "ok": true
+      },
+      {
+        "name": "one-off-needs-original-date",
+        "ok": true
+      },
+      {
+        "name": "mobile-notice-fits",
+        "ok": true
+      },
+      {
+        "name": "one-off-course-updated",
+        "ok": true
+      },
+      {
+        "name": "next-week-course-preserved",
+        "ok": true
+      },
+      {
+        "name": "sample-reset",
+        "ok": true
+      },
+      {
+        "name": "sample-no-account-cache",
+        "ok": true
+      },
+      {
+        "name": "static-sample-no-api",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "name": "no-unhandled-page-errors",
+        "ok": true,
+        "detail": []
+      },
+      {
+        "name": "no-external-page-requests",
+        "ok": true,
+        "detail": []
+      }
+    ],
+    "errors": []
+  },
+  "dependencyAudit": {
+    "registry": "https://registry.npmjs.org",
+    "knownAdvisories": 0
+  },
+  "paidModelCallsThisRound": 0
+}

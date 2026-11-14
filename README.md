@@ -2,6 +2,10 @@
 
 把通知、课表截图和随手记录整理成安排；通知有变化时，对上原日程、发现影响，再比较怎样调整。
 
+[在线样例](https://kkse7en.github.io/second-self/) · [验证报告](docs/TEST-REPORT.md) · [架构与意图控制](docs/ARCHITECTURE.md) · [三条 AI 开发交互链](docs/prompts/README.md)
+
+在线样例免登录，使用本地规则和合成数据；可体验单次调课、截止准备、方案比较与撤销。真实图片识别、自然语言补充和账号保存请按下文运行完整服务。
+
 ![通知关联、风险提醒与方案对照](docs/screenshots/core-flow.png)
 
 ## 先看两件实际的事
@@ -57,14 +61,17 @@ npm run dev
 - 账号保存日程、完成状态、撤销与个人设置；不同账号隔离。SQLite 单实例持久盘，同一部署支持跨设备恢复；localhost 仅是本机服务。
 - 断网时尝试缓存本机修改；网络与本机存储同时失败会明确提示未保存，可重试或导出当前日程。恢复出的未确认修改与多处修改冲突需选择版本。
 - JSON 导出包含当前日程和设置；导入前整体验证，成功后可撤销回导入前。暂无密码找回、邮箱验证或系统推送。
-- 六款随机逐笔动画每轮约 1.3 秒，至少完整绘制一轮；请求较慢时继续循环，后台保存不阻断操作。
 
 ## 验证与开发证据
 
 ```sh
 npm run verify
 npm run build
+npx playwright install chromium
+npm run test:browser
 ```
+
+GitHub Actions 在 Windows / Linux 上检查类型、规范、测试和构建；Linux 另跑实际浏览器核心流程和依赖审计，通过后发布静态样例。[查看最近运行](https://github.com/kkse7en/second-self/actions/workflows/verify.yml)。浏览器检查使用临时账号库，不调用付费模型；结果写入忽略的 output/playwright。本机 Edge 可直接复用。
 
 [验证报告](docs/TEST-REPORT.md)记录本次范围与结果；[架构](docs/ARCHITECTURE.md)说明数据流和护栏。[三条真实 AI 交互链](docs/prompts/README.md)保留用户提问、纠错、AI 回复、源时间与相关提交；历史证据不随界面更新而改写。
 
@@ -72,4 +79,4 @@ npm run build
 
 ## 许可
 
-项目代码 MIT；第三方动画、画笔与头像另见 [来源及许可](THIRD-PARTY-NOTICES.md)，不计为自研算法。
+项目代码 MIT，见 [LICENSE](LICENSE)。
