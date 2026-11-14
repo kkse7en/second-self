@@ -122,11 +122,12 @@ async function postParse(url: string, body: unknown): Promise<IntakeOutcome> {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120000),
     });
-  } catch {
+  } catch (error) {
     return {
       kind: "fail",
-      message: "请求没能发出去：检查网络，或确认本地服务还在运行",
+      message: error instanceof Error && error.name === "TimeoutError" ? "整理超时，请检查连接后重试" : "请求没能发出去：检查网络，或确认本地服务还在运行",
       issues: [],
     };
   }

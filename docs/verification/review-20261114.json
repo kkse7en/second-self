@@ -1,8 +1,8 @@
 {
   "date": "2026-11-14",
   "unit": {
-    "files": 42,
-    "tests": 488,
+    "files": 43,
+    "tests": 490,
     "passed": true
   },
   "typecheck": "passed",
