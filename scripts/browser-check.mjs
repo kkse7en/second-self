@@ -45,6 +45,7 @@ try {
   page.on("request", request => { if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== origin) unexpectedRequests.push(request.url()); if (new URL(request.url()).pathname.includes("/api/")) apiRequests.push(request.url()); });
   await page.goto(base + (staticSample ? "/" : "/sample"));
   await page.getByRole("button", { name: "看调整", exact: true }).waitFor();
+  await page.waitForFunction(() => { const img = document.querySelector(".nav-avatar img"); return img?.complete && img.naturalWidth > 0; });
   check("default-avatar-loaded", await page.locator(".nav-avatar img").evaluate(img => img.complete && img.naturalWidth > 0 && img.getAttribute("src").endsWith("/avatar.svg")));
   check("no-embedded-loading-frame", await page.locator("iframe,canvas").count() === 0);
   for (const width of [320, 390, 768, 1440]) {

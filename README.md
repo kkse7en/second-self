@@ -1,5 +1,7 @@
 # 第二自我
 
+[![Verify](https://github.com/kkse7en/second-self/actions/workflows/verify.yml/badge.svg)](https://github.com/kkse7en/second-self/actions/workflows/verify.yml)
+
 把通知、课表截图和随手记录整理成安排；通知有变化时，对上原日程、发现影响，再比较怎样调整。
 
 [在线样例](https://kkse7en.github.io/second-self/) · [验证报告](docs/TEST-REPORT.md) · [架构与意图控制](docs/ARCHITECTURE.md) · [三条 AI 开发交互链](docs/prompts/README.md)

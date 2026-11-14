@@ -259,5 +259,153 @@
     "registry": "https://registry.npmjs.org",
     "knownAdvisories": 0
   },
-  "paidModelCallsThisRound": 0
+  "paidModelCallsThisRound": 0,
+  "publicSample": {
+    "url": "https://kkse7en.github.io/second-self/",
+    "browser": {
+      "date": "2026-11-14T09:42:14.332Z",
+      "mode": "static-local-rules",
+      "checks": [
+        {
+          "name": "default-avatar-loaded",
+          "ok": true
+        },
+        {
+          "name": "no-embedded-loading-frame",
+          "ok": true
+        },
+        {
+          "name": "responsive-320",
+          "ok": true,
+          "detail": {
+            "overflow": false,
+            "bottom": 832,
+            "height": 844
+          }
+        },
+        {
+          "name": "responsive-390",
+          "ok": true,
+          "detail": {
+            "overflow": false,
+            "bottom": 832,
+            "height": 844
+          }
+        },
+        {
+          "name": "responsive-768",
+          "ok": true,
+          "detail": {
+            "overflow": false,
+            "bottom": 1068,
+            "height": 1080
+          }
+        },
+        {
+          "name": "responsive-1440",
+          "ok": true,
+          "detail": {
+            "overflow": false,
+            "bottom": 1068,
+            "height": 1080
+          }
+        },
+        {
+          "name": "objectives-change-actual-times",
+          "ok": true
+        },
+        {
+          "name": "mobile-plan-fits",
+          "ok": true
+        },
+        {
+          "name": "adopt-returns-to-schedule",
+          "ok": true
+        },
+        {
+          "name": "undo-restores-risks",
+          "ok": true
+        },
+        {
+          "name": "intake-needs-explicit-choice",
+          "ok": true
+        },
+        {
+          "name": "one-off-needs-original-date",
+          "ok": true
+        },
+        {
+          "name": "mobile-notice-fits",
+          "ok": true
+        },
+        {
+          "name": "one-off-course-updated",
+          "ok": true
+        },
+        {
+          "name": "next-week-course-preserved",
+          "ok": true
+        },
+        {
+          "name": "sample-reset",
+          "ok": true
+        },
+        {
+          "name": "sample-no-account-cache",
+          "ok": true
+        },
+        {
+          "name": "static-sample-no-api",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "no-unhandled-page-errors",
+          "ok": true,
+          "detail": []
+        },
+        {
+          "name": "no-external-page-requests",
+          "ok": true,
+          "detail": []
+        }
+      ],
+      "errors": []
+    }
+  },
+  "ci": {
+    "head_sha": "86de2e2fc30e825a35be108b458c9d1438192013",
+    "conclusion": "success",
+    "html_url": "https://github.com/kkse7en/second-self/actions/runs/43580993154",
+    "jobs": [
+      {
+        "name": "verify (windows-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 132405478033,
+        "failed": []
+      },
+      {
+        "name": "verify (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 132405478166,
+        "failed": []
+      },
+      {
+        "name": "sample",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 132405818405,
+        "failed": []
+      },
+      {
+        "name": "deploy",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 132405968284,
+        "failed": []
+      }
+    ]
+  }
 }
