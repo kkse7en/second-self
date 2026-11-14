@@ -8,7 +8,7 @@ import { GET, PUT } from "@/app/api/account/workspace/route";
 import { POST as parseText } from "@/app/api/ai/parse-tasks/route";
 import { POST as parseImage } from "@/app/api/ai/parse-image/route";
 import { POST as replan } from "@/app/api/ai/replan/route";
-import { authSource } from "@/server/account-http";
+import { authSource, sameOrigin } from "@/server/account-http";
 let repo: AccountRepository;
 vi.mock("@/server/accounts", async original => ({ ...await original<typeof import("@/server/accounts")>(), accountRepository: () => repo }));
 const base = "http://localhost";
@@ -18,6 +18,20 @@ function request(path: string, body?: unknown, token?: string, origin = base) {
 beforeEach(() => { repo = new AccountRepository(":memory:"); });
 afterEach(() => { repo.close(); vi.unstubAllEnvs(); });
 describe("账号接口授权与会话", () => {
+  it("实际Host保留环回IP和端口，不受框架绑定地址影响", () => {
+    for (const host of ["127.0.0.1:3022", "localhost:3022", "192.168.1.9:3022"]) {
+      const req = new NextRequest("http://0.0.0.0:3022/api/account/register", { headers: { host, origin: "http://" + host } });
+      expect(() => sameOrigin(req)).not.toThrow();
+    }
+  });
+  it("错误端口、缺失来源和伪造转发主机仍被拒绝", () => {
+    for (const origin of ["http://127.0.0.1:3023", "http://outside.invalid", "null", ""]) {
+      const req = new NextRequest("http://localhost:3022/api/account/register", { headers: { host: "127.0.0.1:3022", origin, "x-forwarded-host": "outside.invalid" } });
+      expect(() => sameOrigin(req)).toThrow("请求来源");
+    }
+    const malformed = new NextRequest("http://localhost:3022/", { headers: { host: "localhost:3022@outside.invalid", origin: "http://outside.invalid" } });
+    expect(() => sameOrigin(malformed)).toThrow("请求来源");
+  });
   it("成功登录不消耗失败次数，并清除同来源账号的失败计数", async () => {
     await repo.register("person_a", "test-only-password", "名字");
     const userKey = JSON.stringify(["login-user", "local", "person_a"]);

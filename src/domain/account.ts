@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TaskListSchema } from "./schemas/task";
 import { DayKeySchema, TimestampSchema } from "./schemas/date";
-import { AVATARS, DEFAULT_PROFILE } from "./profile";
+import { DEFAULT_AVATAR, DEFAULT_PROFILE } from "./profile";
 
 export const CredentialsSchema = z.object({
   username: z.string().trim().min(3, "账号至少3位").max(32).regex(/^[A-Za-z0-9_]+$/, "账号只能使用字母、数字和下划线").transform(value => value.toLowerCase()),
@@ -12,7 +12,7 @@ const day = DayKeySchema.nullable();
 const clock = z.object({ iso: TimestampSchema, source: z.enum(["seed", "system"]) });
 export const AccountProfileSchema = z.object({
   name: z.string().trim().min(1).max(24),
-  avatar: z.string().max(500_000).refine(value => AVATARS.includes(value) || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value)),
+  avatar: z.string().max(500_000).refine(value => /^\/(?!\/)[A-Za-z0-9/_.-]+$/.test(value) || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(value)).transform(() => DEFAULT_AVATAR),
 });
 export const AccountPlannerSchema = z.object({
   tasks: TaskListSchema, snapshot: TaskListSchema.nullable(),

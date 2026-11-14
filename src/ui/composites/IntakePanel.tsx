@@ -18,13 +18,13 @@ import { requestParseImage, requestParseText, type IntakeOutcome } from "./intak
 import { parseLocalTasks } from "@/domain/textParser";
 import { withExplicitWorkload } from "@/domain/preparation";
 import { checkCoverage } from "@/domain/completeness";
-import { PlanningLoading } from "./PlanningLoading";
-import { useLoadingCycle } from "./useLoadingCycle";
+import { RequestStatus } from "./RequestStatus";
+import { useRequestScope } from "./useRequestScope";
 
 type Phase = "idle" | "parsing" | "uncovered" | "ask" | "review" | "changes" | "done" | "error";
 type LastInput = { kind: "text"; text: string } | { kind: "image"; file: File; hint: string };
 export function IntakePanel({sample=false}:{sample?:boolean}) {
-  const cycle = useLoadingCycle();
+  const requestScope = useRequestScope();
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"text" | "image">("text");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -57,17 +57,17 @@ export function IntakePanel({sample=false}:{sample?:boolean}) {
   function applyPatch(index: number, patch: Partial<TaskDraft>) { setDrafts(prev => prev.map((d,i) => i === index ? mergeDraftPatch(d,patch) : d)); setError(""); }
   async function run(input: LastInput) {
     if (busy) return;
-    const animation = cycle.start();
+    const current = requestScope.start();
     const id = ++requestId.current; setLastInput(input); setPhase("parsing"); setPanelOpen(true); setError(""); setEditIndex(null);
     const outcome: IntakeOutcome = sample ? sampleParse(input,dayKey) : input.kind === "text" ? await requestParseText({ text: input.text, dayKey }) : await requestParseImage({ file: input.file, hint: input.hint, dayKey });
-    if (!await animation || id !== requestId.current) return;
+    if (!current() || id !== requestId.current) return;
     if (outcome.kind === "fail") { setError(outcome.message); setPhase("error"); return; }
     setSourceMode(outcome.response.mode === "live" ? "AI 整理" : "本地规则整理");
     setSkipped([]); askHistory.current = []; setDrafts(outcome.response.tasks); setCoverage(outcome.response.coverage); setDismissed([]); setAdopted([]);
     if (outcome.response.coverage.uncovered.length) setPhase("uncovered");
     else toQuestions(outcome.response.tasks);
   }
-  function close() { if (busy) { cycle.cancel(); ++requestId.current; setPhase("idle"); } setPanelOpen(false); }
+  function close() { if (busy) { requestScope.cancel(); ++requestId.current; setPhase("idle"); } setPanelOpen(false); }
   function back() {
     setError("");
     if (phase === "changes") { setPhase("review"); return; }
@@ -105,7 +105,7 @@ export function IntakePanel({sample=false}:{sample?:boolean}) {
     {!panelOpen && phase !== "idle" && <button className="resume-intake" onClick={() => setPanelOpen(true)}>{phase === "parsing" ? "查看整理进度" : phase === "done" ? "查看入库结果" : "继续核对 ↗"}</button>}
     {panelOpen && <Sheet title={title} caption={phase === "ask" ? "01 / 补充" : phase === "review" ? "02 / 核对" : undefined} stepKey={phase + "-" + editIndex + "-" + skipped.length + "-" + askRound} onBack={back} onClose={close} wide={phase === "review" || phase === "changes"}
       footer={phase === "uncovered" ? <button className="btn btn-green" disabled={!!unresolved.length} onClick={() => toQuestions()}>继续</button> : phase === "review" && editIndex === null ? <><span className="sheet-count">{drafts.length} 条日程</span><button className="btn btn-green" disabled={!drafts.length || drafts.some(d => d.needsReview)} onClick={confirm}>下一步</button></> : phase === "changes" ? <button className="btn btn-green" disabled={choices.some(choice => !intakeChoiceComplete(choice,tasks))} onClick={confirm}>确认保存</button> : undefined}>
-      {phase === "parsing" && <PlanningLoading key={cycle.animationKey} onCycleComplete={cycle.complete} label="正在整理日程" />}
+      {phase === "parsing" && <RequestStatus label="正在整理日程" />}
       {phase === "error" && <div className="flow-error"><p role="alert">{error}</p><div className="settings-actions"><button className="btn btn-green" onClick={() => lastInput && void run(lastInput)}>重试</button><button className="btn" onClick={() => { close(); window.dispatchEvent(new Event("second-self:manual-open")); }}>手动添加</button></div></div>}
       {phase === "uncovered" && coverage && <UncoveredNotice coverage={coverage} dismissedLineNos={dismissed} adoptedLineNos={adopted} onAdopt={adopt} onDismiss={n => setDismissed(prev => [...prev,n])} onRestore={n => setDismissed(prev => prev.filter(v => v !== n))} />}
       {phase === "ask" && <ClarifyPanel key={askRound} drafts={drafts} dayKey={dayKey} onPatch={applyPatch} onFinish={() => setPhase("review")} onSkipAll={() => setPhase("review")} skipped={skipped} onAnswer={(index,patch,skip) => { askHistory.current.push({drafts,skipped}); applyPatch(index,patch); if (skip) setSkipped(prev => [...prev,index]); setAskRound(n => n+1); }} />}

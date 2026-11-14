@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { usePlannerStore } from "@/data/store";
 import { Button } from "@/ui/primitives";
 
-import { PlanningLoading } from "./PlanningLoading";
-import { useLoadingCycle } from "./useLoadingCycle";
+import { RequestStatus } from "./RequestStatus";
+import { useRequestScope } from "./useRequestScope";
 
 /** 导出当前日程与设置；导入建立导入前快照，支持撤销。 */
 export function DataPortability() {
-  const cycle = useLoadingCycle();
+  const requestScope = useRequestScope();
   const [busy, setBusy] = useState(false);
   const exportJson = usePlannerStore((s) => s.exportJson);
   const importJson = usePlannerStore((s) => s.importJson);
@@ -37,13 +37,13 @@ export function DataPortability() {
   async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || busy) return;
-    let animation: Promise<boolean> | null = null;
+    let current: (() => boolean) | null = null;
     try {
       if (file.size > 5_000_000) throw new Error("文件超过 5 MB");
       if (!window.confirm("导入会替换当前全部任务，可撤销。是否继续？")) return;
-      setBusy(true); animation = cycle.start();
+      setBusy(true); current = requestScope.start();
       const text = await file.text();
-      if (!await animation) return;
+      if (!current()) return;
       const result = importJson(text);
       setMsg(
         result.ok
@@ -56,7 +56,7 @@ export function DataPortability() {
           : { tone: "err", text: result.error ?? "导入失败" },
       );
     } catch {
-      if (animation && !await animation) return;
+      if (current && !current()) return;
       setMsg({ tone: "err", text: "读取文件失败" });
     } finally {
       setBusy(false);
@@ -87,7 +87,7 @@ export function DataPortability() {
         onChange={(e) => void handleFile(e)}
         aria-label="选择要导入的 JSON 文件"
       />
-      {busy && <PlanningLoading key={cycle.animationKey} onCycleComplete={cycle.complete} label="正在导入日程" />}
+      {busy && <RequestStatus label="正在导入日程" />}
       {msg ? (
         <span
           role="status"

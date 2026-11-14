@@ -14,7 +14,16 @@ export function requireAccount(request: NextRequest) {
 }
 export function sameOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
-  if (!origin || origin !== new URL(request.url).origin) throw new AccountError(403, "请求来源不被允许，请刷新页面重试");
+  const url = new URL(request.url);
+  // NextURL may normalize a loopback address to localhost, or use the bind host.
+  // Compare against the actual HTTP authority; never trust forwarded-host here.
+  const host = request.headers.get("host") ?? url.host;
+  let expected = "";
+  try {
+    const target = new URL(url.protocol + "//" + host);
+    if (!target.username && !target.password && target.host === host && target.pathname === "/" && !target.search && !target.hash) expected = target.origin;
+  } catch { /* malformed authority is rejected */ }
+  if (!origin || origin !== expected) throw new AccountError(403, "请求来源不被允许，请刷新页面重试");
 }
 export async function readAccountJson(request: NextRequest, limit = 6_000_000): Promise<unknown> {
   const declared = Number(request.headers.get("content-length") ?? 0);

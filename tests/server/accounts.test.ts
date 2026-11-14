@@ -40,7 +40,7 @@ describe("账号与持久化隔离", () => {
   });
   it("重开数据库仍可登录并找回任务和头像", async () => {
     const account = await repo.register("person_a", "test-secret-123", "昵称A");
-    const workspace = { ...account.workspace, profile: { name: "保存的我", avatar: "/avatars/avatar-3.webp" } };
+    const workspace = { ...account.workspace, profile: { name: "保存的我", avatar: "/avatar.svg" } };
     repo.save(account.user.id, workspace, 0);repo.close();repo = new AccountRepository(path.join(directory, "accounts.sqlite"));
     const restored = await repo.login("person_a", "test-secret-123");
     expect(restored.workspace.profile).toEqual(workspace.profile);expect(restored.revision).toBe(1);

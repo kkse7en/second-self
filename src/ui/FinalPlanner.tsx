@@ -15,12 +15,13 @@ import { Sheet } from "./Sheet";
 import { UndoNotice } from "./UndoNotice";
 import { PriorityMark } from "./primitives/Priority";
 import { TaskEditor } from "./TaskEditor";
-import { PlanningLoading } from "./composites/PlanningLoading";
+import { RequestStatus } from "./composites/RequestStatus";
 import { useAccount } from "./AccountContext";
 import { RiskOverview } from "./composites/RiskOverview";
 import { planningRisks } from "@/domain/risks";
 import { needsPreparation } from "@/domain/preparation";
 import { EMPTY_SCENES } from "./emptyScenes";
+import { assetUrl } from "@/shared/assetUrl";
 
 type Tab = "today" | "add" | "future";
 const tabNames: Record<Tab, string> = { today: "今天", add: "添加", future: "未来" };
@@ -32,8 +33,7 @@ function Icon({ name }: { name: Tab }) {
 export function FinalPlanner() {
   const { status: syncStatus, error: syncError, sync, sample } = useAccount();
   const hydrated = usePlannerHydration();
-  const [initialCycleDone, setInitialCycleDone] = useState(true);
-  const ready = hydrated && initialCycleDone;
+  const ready = hydrated;
   const store = usePlannerStore();
   const [tab, setTab] = useState<Tab>("today");
   const [selected, setSelected] = useState<string | null>(null);
@@ -120,15 +120,15 @@ export function FinalPlanner() {
 
   return <>
     <a className="skip-link" href="#main-content">跳到主要内容</a>
-    <header className="nav"><div className="nav-in"><div className="nav-pill"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true">二</span><span className="brand-word">第二自我</span></button><span className="nav-state"><i />今天 · {ready ? stateLabel : "…"}</span><button className="nav-avatar" disabled={!ready} aria-label="个人设置" title={profile.name} onClick={() => sample ? setNotice("样例不保存个人信息，登录后可设置头像与账号。") : setSettings(true)}>
+    <header className="nav"><div className="nav-in"><div className="nav-pill"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true">二</span><span className="brand-word">第二自我</span></button><span className="nav-state"><i />今天 · {ready ? stateLabel : "…"}</span><button className="nav-avatar" disabled={!ready} aria-label="个人设置" title={profile.name} onClick={() => sample ? setNotice("样例不保存个人信息，登录后可修改昵称与账号设置。") : setSettings(true)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={profile.avatar} alt={profile.name + "的头像"} />
+      <img src={assetUrl(profile.avatar)} alt={profile.name + "的头像"} />
     </button></div></div></header>
     <main id="main-content">
       {ready && <div className="clock-strip">{today} {weekdayLabel(today)} {formatClock(now.getTime())} · {store.demoClock.source === "seed" ? <><strong>演示时间</strong><button onClick={() => {store.exitDemo(); setSelected(null); setMonthOffset(0); setNotice("已返回实时日程");}}>返回实时</button></> : "实时日程"}</div>}
-      {syncStatus !== "saved" && <div className={"account-save-notice is-" + syncStatus} role="status"><span>{syncStatus === "saving" ? "正在保存…" : syncStatus === "offline" ? "连接中断，修改已留在本机" : syncError}</span>{(syncStatus === "offline" || syncStatus === "unsaved") && <button onClick={() => void sync.flush()}>重试保存</button>}{(syncStatus === "conflict" || syncStatus === "expired") && <button onClick={() => sample ? setNotice("样例不保存个人信息，登录后可设置头像与账号。") : setSettings(true)}>处理</button>}</div>}
+      {syncStatus !== "saved" && <div className={"account-save-notice is-" + syncStatus} role="status"><span>{syncStatus === "saving" ? "正在保存…" : syncStatus === "offline" ? "连接中断，修改已留在本机" : syncError}</span>{(syncStatus === "offline" || syncStatus === "unsaved") && <button onClick={() => void sync.flush()}>重试保存</button>}{(syncStatus === "conflict" || syncStatus === "expired") && <button onClick={() => sample ? setNotice("样例不保存个人信息，登录后可修改昵称与账号设置。") : setSettings(true)}>处理</button>}</div>}
       {(!storageOK || store.lastError) && <div className="global-alert" role="alert">{!storageOK ? "浏览器未能保存数据，请立即到设置导出备份。" : store.lastError}<button onClick={store.dismissError}>知道了</button></div>}
-      {!ready && <div className="page-shell"><PlanningLoading label="正在读取日程" onCycleComplete={() => setInitialCycleDone(true)} /></div>}
+      {!ready && <div className="page-shell"><RequestStatus label="正在读取日程" /></div>}
       {ready && tab === "today" && <section id="view-today"><div className="hero-in"><div className="hero-copy"><p className="eyebrow">通知变了，安排也能跟着变。</p><h1 className="hero-title">随手记下来，<br /><mark>一步步安排好。</mark></h1><p className="hero-sub">{ready ? todayTasks.length ? todayTasks.filter(t=>!t.done).length + " 件待办，一件一件来。" : "事情交给日程，生活留给自己。" : "正在准备你的今天。"}</p><p className="hero-status"><i /><span>{stateLabel}</span><span>·</span><span>{formatDuration(load)} / 10 小时</span></p></div></div><div className="home-shell"><div className="stack">{riskOverview}{dayCard()}{looseTasks.length > 0 && <section className="add-card mt-5"><h2 className="section-heading">还没定时间 · {looseTasks.length}</h2>{renderRows(looseTasks, day)}</section>}</div></div></section>}
       {ready && <section className="page-shell" hidden={tab !== "add"}><header className="page-head"><h1 className="page-title">记一条<mark>新鲜事。</mark></h1></header><div className="stack space-y-5"><IntakePanel sample={sample} /><ManualAddForm /></div></section>}
       {ready && tab === "future" && <section className="page-shell"><header className="page-head"><h1 className="page-title">未来，<mark>心里有数。</mark></h1><p className="page-sub">先处理变动，再看接下来的日子。</p></header><div className="stack">{riskOverview}<section className="calendar-card" aria-label="日程月历"><div className="cal-head"><h2>{displayedMonth.getFullYear()} 年 {displayedMonth.getMonth()+1} 月</h2><div className="month-controls"><button aria-label="上个月" onClick={() => setMonthOffset(monthOffset-1)}>←</button><button onClick={() => {setMonthOffset(0); chooseDay(today);}}>今天</button><button aria-label="下个月" onClick={() => setMonthOffset(monthOffset+1)}>→</button></div></div><div className="cal-week">{"一二三四五六日".split("").map(w => <span key={w}>{w}</span>)}</div><div className="cal-grid">{Array.from({length:blanks},(_,i)=><span key={"blank"+i} />)}{Array.from({length:monthDays},(_,i)=> {const key=addDaysToKey(first,i); const count=tasksOnDay(store.tasks,key,store.termStartDayKey).length; const hasConflict=conflicts.some(c=>c.date===key); return <button key={key} className={"cal-day " + (key===day ? "is-active " : count ? "has-tasks " : "") + (key===today ? "is-today" : "")} aria-label={key + "，" + count + "项安排" + (hasConflict ? "，有冲突" : "")} aria-pressed={key===day} onClick={()=>chooseDay(key)}><span className="cal-num">{i+1}</span><span className="cal-count">{count ? count+" 项" : ""}</span>{hasConflict && <i className="cal-dot" />}</button>;})}</div></section><div className="date-controls"><button className="round-action date-arrow" onClick={()=>chooseDay(addDaysToKey(day,-1))} aria-label="前一天">←</button><label>查看日期<input type="date" value={day} onChange={e => {if(e.target.value) chooseDay(e.target.value);}} /></label><button className="round-action date-arrow" onClick={()=>chooseDay(addDaysToKey(day,1))} aria-label="后一天">→</button></div>{dayCard()}<section className="add-card mt-5"><label className="search-label" htmlFor="task-search">查找全部 {store.tasks.length} 项任务</label><input id="task-search" type="search" placeholder="按标题、地点查找" value={query} onChange={e=>setQuery(e.target.value)} />{query && (searchResults.length ? renderRows(searchResults, day, false) : <p className="empty">没有匹配的任务。</p>)}{looseTasks.length>0 && <details className="advanced"><summary>未安排任务 · {looseTasks.length}</summary>{renderRows(looseTasks,day)}</details>}</section></div></section>}
