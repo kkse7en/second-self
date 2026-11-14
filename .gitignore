@@ -26,6 +26,8 @@ build/
 .output/
 .svelte-kit/
 out/
+.demo-build/
+out-demo/
 storybook-static/
 *.tsbuildinfo
 .pytest_cache/

@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // 隐藏开发浮标；错误仍在终端和健康接口报告。
   devIndicators: false,
+  async headers() {
+    return [{ source: "/:path*", headers: [
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "") + "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'" + (process.env.NODE_ENV === "development" ? " ws: wss:" : "") + "; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" },
+    ] }];
+  },
   turbopack: {
     root: fileURLToPath(new URL(".", import.meta.url)),
   },

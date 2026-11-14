@@ -21,7 +21,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "parse": "tsx scripts/parse.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "test:browser": "node scripts/browser-check.mjs",
+    "build:demo": "node scripts/build-demo.mjs"
   },
   "dependencies": {
     "framer-motion": "14.3.0",
@@ -41,6 +43,7 @@
     "clsx": "2.1.1",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.2",
+    "playwright": "1.65.1",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
