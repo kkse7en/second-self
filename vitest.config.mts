@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
+// 与服务端一致；日期型截止按北京时间23:59解释。
+process.env.TZ = "Asia/Shanghai";
+
 /**
  * 单测覆盖领域规则、数据恢复、AI契约与账号接口。
  * React 组件不在此配置内做快照测试，避免与 Next 构建链耦合。

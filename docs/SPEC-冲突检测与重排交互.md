@@ -1,6 +1,6 @@
 # 冲突与重排：当前实现索引
 
-2026-10-24。当前契约以src/domain/schemas/task.ts与src/domain/schemas/conflict.ts为准，完整设计见ARCHITECTURE.md；本文件不另维护第二份字段定义。
+2026-11-14。当前契约以src/domain/schemas/task.ts与src/domain/schemas/conflict.ts为准，完整设计见ARCHITECTURE.md；本文件不另维护第二份字段定义。
 
 四类规则：overlap、buffer、overload、deadline。时间区间半开；周期按检测窗口与学期设置展开；已完成的周期实例按天排除。
 
@@ -8,4 +8,4 @@
 
 检测入口src/domain/conflicts.ts；周期入口time.ts；候选与指标reflow.ts；共同护栏planGuard.ts。边界回归见tests/domain/final-integration.test.ts及原有domain测试。
 
-规则参数不是健康建议；保守启发式不保证全局最优；周期单次例外与跨时区尚不支持。
+规则参数不是健康建议；保守启发式不保证全局最优；周期单次例外通过排除原日期与新增关联实例实现；跨时区尚未验证。
