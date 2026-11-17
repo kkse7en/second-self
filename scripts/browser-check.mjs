@@ -96,8 +96,22 @@ try {
     check("static-sample-no-api", apiRequests.length === 0, apiRequests);
   } else {
     await page.setViewportSize({ width: 1440, height: 1080 }); await page.goto(base + "/");
-    await page.getByRole("button", { name: "注册", exact: true }).waitFor(); await screenshot(page, "login");
-    await page.getByRole("button", { name: "注册", exact: true }).click(); await screenshot(page, "register");
+    await page.getByRole("button", { name: "注册", exact: true }).waitFor();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1080 });
+      for (const mode of ["登录", "注册"]) {
+        await page.getByRole("button", { name: mode, exact: true }).click();
+        const layout = await page.locator(".auth-card").evaluate(card => {
+          const form = card.querySelector("form"), inputs = [...form.querySelectorAll("input")];
+          const rect = card.getBoundingClientRect();
+          return { display: getComputedStyle(form).display, background: getComputedStyle(card).backgroundColor, noOverflow: document.documentElement.scrollWidth <= innerWidth, inside: inputs.every(input => { const box = input.getBoundingClientRect(); return box.left >= rect.left && box.right <= rect.right; }), stacked: inputs.every((input, i) => i === 0 || input.getBoundingClientRect().top >= inputs[i - 1].getBoundingClientRect().bottom) };
+        });
+        check("auth-" + mode + "-" + width, layout.display === "grid" && layout.background !== "rgba(0, 0, 0, 0)" && layout.noOverflow && layout.inside && layout.stacked, layout);
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 1080 }); await screenshot(page, "register");
+    await page.getByRole("button", { name: "登录", exact: true }).click(); await screenshot(page, "login");
+    await page.getByRole("button", { name: "注册", exact: true }).click();
     const username = "browser_" + Date.now(), password = "Check-" + crypto.randomUUID();
     await page.getByLabel("昵称", { exact: true }).fill("测试体验者");
     await page.getByLabel("账号", { exact: true }).fill(username); await page.getByLabel("密码", { exact: true }).fill(password); await page.getByLabel("确认密码", { exact: true }).fill(password);
